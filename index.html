@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>作用年賀状製作所（儀式感）</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&family=Ma+Shan+Zheng&family=Yuji+Syuku&display=swap" rel="stylesheet">
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --primary: #d65a75; /* 加深一點的主色，更有儀式感 */
+      --secondary: #ffc6c7;
+      --bg-color: #fdfcf8;
+      --text-color: #4a4a4a;
+      --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      --active-tab: #ffe4e8;
+    }
+
+    body { 
+      background-color: var(--bg-color); 
+      color: var(--text-color);
+      font-family: "Zen Maru Gothic", "Noto Sans TC", sans-serif; 
+      margin: 0; padding: 20px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    
+    /* 儀式感標題 */
+    h2 { 
+      margin: 0 0 20px 0; color: var(--primary); 
+      font-weight: 700; letter-spacing: 3px; 
+      border-bottom: 2px solid var(--secondary);
+      padding-bottom: 10px;
+    }
+
+    .app-container {
+      display: flex; gap: 30px;
+      max-width: 1200px; width: 100%;
+      align-items: flex-start; justify-content: center;
+      flex-wrap: wrap; 
+    }
+
+    /* 左側：畫布區 */
+    .canvas-section {
+      flex: 0 0 auto;
+      display: flex; flex-direction: column; gap: 15px; align-items: center;
+    }
+    .canvas-wrapper { 
+      box-shadow: var(--card-shadow); 
+      border: 10px solid white; border-radius: 4px; /* 加厚邊框 */
+      background-color: #fff;
+      background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    /* 右側：工具面板 */
+    .tools-section {
+      flex: 1; min-width: 320px; max-width: 450px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    .tool-card {
+      background: white; padding: 20px; border-radius: 16px;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.2s;
+    }
+    
+    .card-title {
+      font-size: 15px; font-weight: 700; color: #888; margin: 0 0 12px 0;
+      border-bottom: 1px solid #f0f0f0; padding-bottom: 8px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    button { 
+      padding: 8px 16px; cursor: pointer; 
+      border: 1px solid #eee; background: white; 
+      border-radius: 8px; font-size: 14px; color: #555;
+      transition: 0.2s; font-family: inherit; font-weight: 500;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    button:hover { background: #fafafa; border-color: #ddd; transform: translateY(-1px); }
+    button:active { transform: translateY(0); box-shadow: none; }
+    
+    button.active { 
+      background: var(--primary); color: white; border-color: var(--primary); 
+      box-shadow: 0 4px 8px rgba(214, 90, 117, 0.3);
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .full-width { width: 100%; }
+
+    /* --- 分類標籤 (Tabs) --- */
+    .category-tabs { display: flex; gap: 5px; margin-bottom: 10px; background: #f5f5f5; padding: 4px; border-radius: 8px; }
+    .tab-btn {
+      flex: 1; border: none; background: transparent; padding: 8px; font-size: 13px;
+      border-radius: 6px; box-shadow: none; color: #666;
+    }
+    .tab-btn:hover { background: #eee; transform: none; }
+    .tab-btn.active-tab {
+      background: white; color: var(--primary); font-weight: bold;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sticker-grid { 
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); 
+      gap: 10px; max-height: 300px; overflow-y: auto; padding: 5px;
+      min-height: 100px; /* 避免空的時候太扁 */
+    }
+    .sticker-grid img { 
+      width: 100%; aspect-ratio: 1; object-fit: contain; 
+      border: 1px solid #f0f0f0; border-radius: 8px; 
+      background: #fff; transition: 0.2s; cursor: pointer;
+    }
+    .sticker-grid img:hover { transform: scale(1.1); border-color: var(--primary); }
+
+    /* 開關樣式 */
+    .switch-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+    input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px; }
+
+    .color-picker-wrapper {
+      position: relative; overflow: hidden; width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid #fff; box-shadow: 0 0 0 1px #ddd; cursor: pointer;
+    }
+    input[type="color"] {
+      position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+      padding: 0; border: none; cursor: pointer;
+    }
+
+    #status-msg { 
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: rgba(74, 74, 74, 0.95); color: white; 
+      padding: 10px 24px; border-radius: 30px; 
+      font-size: 13px; letter-spacing: 1px;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000;
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      h2 { font-size: 20px; }
+      .app-container { flex-direction: column; align-items: center; gap: 15px; }
+      .tools-section { width: 100%; max-width: 100%; }
+      .canvas-wrapper { width: 100%; max-width: 95vw; border-width: 5px; } 
+      canvas { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🌸 作用年賀状製作所 </h2>
+
+  <div class="app-container">
+    
+    <div class="canvas-section">
+      <div class="canvas-wrapper">
+        <canvas id="c" width="500" height="700"></canvas>
+      </div>
+      
+      <div class="btn-group">
+        <button onclick="undo()" id="btn-undo" title="復原">↩️</button>
+        <button onclick="redo()" id="btn-redo" title="重做">↪️</button>
+        <div style="width: 1px; background: #ddd; margin: 0 5px;"></div>
+        <button onclick="clearCanvas()">🗑️ 重來</button>
+        <button onclick="downloadImage()" style="background: #4CAF50; color: white; border: none;">💾 保存</button>
+      </div>
+    </div>
+
+    <div class="tools-section">
+
+      <div class="tool-card">
+        <div class="card-title">
+          <span>📦 雲端素材庫</span>
+          <label class="switch-label">
+            <input type="checkbox" id="bg-mode-toggle"> 
+            <span style="color:var(--primary); font-weight:bold;">設為背景</span>
+          </label>
+        </div>
+
+        <div class="category-tabs">
+          <button class="tab-btn active-tab" onclick="switchCategory('stickers', this)">🐶 貼圖</button>
+          <button class="tab-btn" onclick="switchCategory('backgrounds', this)">🖼️ 背景</button>
+          <button class="tab-btn" onclick="switchCategory('stamps', this)">💮 印章</button>
+        </div>
+
+        <div id="sticker-list" class="sticker-grid">
+          <p style="font-size:12px; color:#999; padding:10px;">讀取中...</p>
+        </div>
+        
+        <div style="margin-top:10px; border-top:1px dashed #eee; padding-top:10px;">
+           <label style="display:flex; align-items:center; gap:5px; justify-content:center; cursor:pointer; color:#888; font-size:12px;">
+             📂 從電腦上傳其他圖片
+             <input type="file" style="display:none" accept="image/*" onchange="handleUniversalUpload(this)">
+           </label>
+        </div>
+      </div>
+
+      <div class="tool-card">
+        <div class="card-title">操作模式</div>
+        <div class="btn-group full-width">
+          <button onclick="setMode('select')" id="btn-select" class="active" style="flex:1;">✋ 調整</button>
+          <button onclick="setMode('draw')" id="btn-draw" style="flex:1;">🖌️ 塗鴉</button>
+        </div>
+        
+        <div id="brush-controls" style="margin-top: 15px; display: none; background: #f9f9f9; padding: 10px; border-radius: 8px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <div class="color-picker-wrapper" title="筆刷顏色">
+              <input type="color" id="brush-color" value="#4a4a4a" onchange="updateBrush()">
+            </div>
+            <select id="brush-type" onchange="updateBrush()" style="flex:1; padding:5px;">
+              <option value="pencil">✏️ 鉛筆</option>
+              <option value="marker">🖍️ 螢光筆</option>
+              <option value="spray">💨 噴槍</option>
+              <option value="eraser">⬜ 橡皮擦</option>
+            </select>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:12px;">粗細</span>
+            <input type="range" id="brush-width" min="1" max="50" value="5" onchange="updateBrush()" style="flex:1;">
+          </div>
+        </div>
+      </div>
+
+      <div class="tool-card">
+        <div class="card-title">文字工具</div>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <input type="text" id="text-input" placeholder="輸入賀詞..." value="蛇年行大運" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
+          <div class="color-picker-wrapper" title="文字顏色">
+            <input type="color" id="text-color" value="#d65a75">
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <select id="font-select" style="flex:2; padding:5px; border-radius:4px; border:1px solid #ccc;">
+            <option value="Ma Shan Zheng">書法手寫體</option>
+            <option value="Zen Maru Gothic">可愛圓體</option>
+            <option value="Yuji Syuku">日式行書</option>
+            <option value="Noto Sans TC">標準黑體</option>
+          </select>
+          <button onclick="toggleVertical()" id="btn-vertical" style="flex:1;">➡️ 橫書</button>
+        </div>
+        <button onclick="addText()" class="full-width" style="background:#f0f0f0;">➕ 加入文字</button>
+      </div>
+
+      <div class="tool-card">
+        <div class="card-title">圖層順序</div>
+        <div class="btn-group full-width">
+          <button onclick="moveLayer('front')" style="flex:1;">⬆️ 置頂</button>
+          <button onclick="moveLayer('up')" style="flex:1;">↑ 上移</button>
+          <button onclick="moveLayer('down')" style="flex:1;">↓ 下移</button>
+          <button onclick="moveLayer('back')" style="flex:1;">⬇️ 置底</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="status-msg">操作成功</div>
+
+   <script>
+    // ⚠️⚠️⚠️ 請在這裡填入您的 Supabase 資料 ⚠️⚠️⚠️
+    const SUPABASE_URL = 'https://kyjppevleohxkrxvghve.supabase.co'; 
+    const SUPABASE_KEY = 'sb_publishable_ICm0LIiw6DHBz-s7SHUYuQ_kDqSlITB';
+
+    const canvas = new fabric.Canvas('c', {
+      backgroundColor: '#ffffff',
+      isDrawingMode: false,
+      preserveObjectStacking: true 
+    });
+
+    let isVertical = false;
+    let history = [];
+    let historyRedo = [];
+    let isHistoryProcessing = false;
+    let currentCategory = 'stickers'; // 預設分類
+
+    // --- 歷史紀錄 (Undo/Redo) ---
+    function saveState() {
+      if (isHistoryProcessing) return;
+      if (history.length > 30) history.shift();
+      // 存檔包含 isBackground 屬性
+      history.push(JSON.stringify(canvas.toDatalessJSON(['isBackground'])));
+      historyRedo = [];
+      updateHistoryButtons();
+    }
+    
+    function restoreLocks() {
+      canvas.getObjects().forEach(obj => {
+        if (obj.isBackground) {
+          obj.set({
+            selectable: false, evented: false, hasControls: false,
+            hasBorders: false, lockMovementX: true, lockMovementY: true
+          });
+          canvas.sendToBack(obj);
+        }
+      });
+      canvas.requestRenderAll();
+    }
+
+    canvas.on('object:added', (e) => { if(!isHistoryProcessing) saveState(); });
+    canvas.on('object:modified', saveState);
+    canvas.on('object:removed', saveState);
+    canvas.on('path:created', saveState);
+
+    function undo() {
+      if (history.length === 0) return;
+      isHistoryProcessing = true;
+      historyRedo.push(JSON.stringify(canvas.toDatalessJSON(['isBackground'])));
+      const content = history.pop();
+      canvas.loadFromJSON(content, () => {
+        restoreLocks();
+        isHistoryProcessing = false;
+        updateHistoryButtons();
+        showStatus('已復原');
+      });
+    }
+
+    function redo() {
+      if (historyRedo.length === 0) return;
+      isHistoryProcessing = true;
+      history.push(JSON.stringify(canvas.toDatalessJSON(['isBackground'])));
+      const content = historyRedo.pop();
+      canvas.loadFromJSON(content, () => {
+        restoreLocks();
+        isHistoryProcessing = false;
+        updateHistoryButtons();
+        showStatus('已重做');
+      });
+    }
+
+    function updateHistoryButtons() {
+      document.getElementById('btn-undo').disabled = (history.length === 0);
+      document.getElementById('btn-redo').disabled = (historyRedo.length === 0);
+    }
+    saveState();
+
+
+    // --- 雲端素材分類 (V11 新增核心) ---
+    
+    async function switchCategory(category, btn) {
+      currentCategory = category;
+      
+      // 更新按鈕樣式
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
+      btn.classList.add('active-tab');
+
+      // 自動切換「設為背景模式」以符合分類直覺
+      const bgToggle = document.getElementById('bg-mode-toggle');
+      if (category === 'backgrounds') {
+        bgToggle.checked = true;
+      } else {
+        bgToggle.checked = false;
+      }
+
+      // 重新讀取圖片
+      loadCloudImages(category);
+    }
+
+    async function loadCloudImages(folder) {
+      const listDiv = document.getElementById('sticker-list');
+      if (SUPABASE_URL.includes('xxxx')) {
+        listDiv.innerHTML = '<p style="color:#d65a75; font-size:12px;">⚠️ 請編輯程式碼填入 Key</p>';
+        return;
+      }
+      
+      listDiv.innerHTML = '<p style="font-size:12px; color:#999; padding:5px;">讀取中...</p>';
+
+      try {
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 讀取指定資料夾
+        const { data, error } = await supabase.storage.from('assets').list(folder);
+        
+        if (error) throw error;
+        
+        listDiv.innerHTML = '';
+        if (data && data.length > 0) {
+          // 過濾掉空資料夾佔位符
+          const items = data.filter(i => i.name !== '.emptyFolderPlaceholder');
+          
+          if (items.length === 0) {
+             listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">資料夾 ${folder} 是空的<br>請去 Supabase 上傳圖片</p>`;
+             return;
+          }
+
+          items.forEach(item => {
+            const url = supabase.storage.from('assets').getPublicUrl(folder + '/' + item.name).data.publicUrl;
+            
+            const img = document.createElement('img');
+            img.src = url;
+            img.onclick = () => {
+              fabric.Image.fromURL(url, (oImg) => {
+                processImage(oImg);
+              }, { crossOrigin: 'anonymous' });
+            };
+            listDiv.appendChild(img);
+          });
+        } else {
+          listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">找不到資料夾 ${folder}</p>`;
+        }
+      } catch (err) {
+        console.error(err);
+        listDiv.innerHTML = '<p style="color:red; font-size:12px;">讀取失敗，請確認 Supabase 設定</p>';
+      }
+    }
+
+
+    // --- 核心功能 (維持 V10.1 邏輯) ---
+
+    function setMode(mode) {
+      document.getElementById('btn-select').className = (mode === 'select' ? 'active' : '');
+      document.getElementById('btn-draw').className = (mode === 'draw' ? 'active' : '');
+      document.getElementById('brush-controls').style.display = (mode === 'draw') ? 'block' : 'none';
+
+      if (mode === 'select') {
+        canvas.isDrawingMode = false;
+      } else {
+        canvas.isDrawingMode = true;
+        updateBrush();
+      }
+    }
+
+    function updateBrush() {
+      if (!canvas.isDrawingMode) return;
+      const type = document.getElementById('brush-type').value;
+      const color = document.getElementById('brush-color').value;
+      const width = parseInt(document.getElementById('brush-width').value, 10);
+
+      if (type === 'eraser') {
+        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        canvas.freeDrawingBrush.color = "#ffffff";
+        canvas.freeDrawingBrush.width = width * 3;
+        return;
+      }
+      if (type === 'spray') {
+        canvas.freeDrawingBrush = new fabric.SprayBrush(canvas);
+        canvas.freeDrawingBrush.width = width * 2;
+      } else {
+        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        canvas.freeDrawingBrush.width = width;
+      }
+      const c = new fabric.Color(color);
+      if (type === 'marker') {
+        c.setAlpha(0.3);
+        canvas.freeDrawingBrush.width = width * 3;
+      } else {
+        c.setAlpha(1);
+      }
+      canvas.freeDrawingBrush.color = c.toRgba();
+    }
+
+    function processImage(img) {
+      const isBgMode = document.getElementById('bg-mode-toggle').checked;
+
+      if (isBgMode) {
+        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+        img.set({
+          left: canvas.width / 2, top: canvas.height / 2,
+          originX: 'center', originY: 'center',
+          scaleX: scale, scaleY: scale,
+          selectable: false, evented: false, hasControls: false, hasBorders: false,
+          lockMovementX: true, lockMovementY: true,
+          isBackground: true 
+        });
+        canvas.add(img);
+        canvas.sendToBack(img); 
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
+        showStatus('🖼️ 背景已設定');
+      } else {
+        img.scaleToWidth(150);
+        img.set({left: 150, top: 150, isBackground: false});
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        showStatus('✅ 圖片已加入');
+      }
+      setMode('select');
+    }
+
+    function handleUniversalUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(f) {
+        fabric.Image.fromURL(f.target.result, function(img) {
+          processImage(img);
+        });
+      };
+      reader.readAsDataURL(file);
+      input.value = '';
+    }
+
+    function addText() {
+      const textVal = document.getElementById('text-input').value;
+      const fontVal = document.getElementById('font-select').value;
+      const colorVal = document.getElementById('text-color').value;
+      const finalVal = isVertical ? textVal.split('').join('\n') : textVal;
+
+      const text = new fabric.IText(finalVal, {
+        left: 100, top: 100, fontSize: 40,
+        fontFamily: fontVal, fill: colorVal,
+        textAlign: isVertical ? 'center' : 'left',
+        lineHeight: isVertical ? 0.85 : 1.2
+      });
+
+      canvas.add(text);
+      canvas.setActiveObject(text);
+      setMode('select');
+    }
+
+    function toggleVertical() {
+      isVertical = !isVertical;
+      const btn = document.getElementById('btn-vertical');
+      btn.textContent = isVertical ? '⬇️ 直書' : '➡️ 橫書';
+    }
+
+    function moveLayer(dir) {
+      const active = canvas.getActiveObject();
+      if (!active) return showStatus('請先選取物件');
+      if (active.selectable === false || active.isBackground) return showStatus('背景不能移動');
+
+      if (dir === 'front') active.bringToFront();
+      if (dir === 'back') active.sendToBack();
+      if (dir === 'up') active.bringForward();
+      if (dir === 'down') active.sendBackwards();
+      
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      saveState();
+    }
+
+    function showStatus(msg) {
+      const el = document.getElementById('status-msg');
+      el.textContent = msg;
+      el.style.opacity = 1;
+      setTimeout(() => el.style.opacity = 0, 2000);
+    }
+    function clearCanvas() {
+      if(confirm('確定要清空畫布嗎？')) { 
+        canvas.clear(); canvas.setBackgroundColor('#ffffff'); history = []; saveState();
+      }
+    }
+    function downloadImage() {
+      const link = document.createElement('a');
+      link.download = 'nengajo.png';
+      link.href = canvas.toDataURL({format:'png', quality:1});
+      link.click();
+    }
+
+    // 啟動預設分類
+    loadCloudImages('stickers');
+  </script>
+</body>
+</html>
