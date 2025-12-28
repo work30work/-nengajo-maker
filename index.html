@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>作用年賀状製作所（儀式感）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>作用年賀状製作所</title>
   
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&family=Ma+Shan+Zheng&family=Yuji+Syuku&display=swap" rel="stylesheet">
   
@@ -12,26 +12,26 @@
 
   <style>
     :root {
-      --primary: #d65a75; /* 加深一點的主色，更有儀式感 */
+      --primary: #d65a75;
       --secondary: #ffc6c7;
       --bg-color: #fdfcf8;
       --text-color: #4a4a4a;
       --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
-      --active-tab: #ffe4e8;
     }
 
+    /* V11.1 手機版修復：改回區塊排版，防止內容消失 */
     body { 
       background-color: var(--bg-color); 
       color: var(--text-color);
       font-family: "Zen Maru Gothic", "Noto Sans TC", sans-serif; 
-      margin: 0; padding: 20px;
-      display: flex; flex-direction: column; align-items: center;
+      margin: 0; padding: 20px 10px; /* 手機版左右留白縮小 */
+      text-align: center; /* 讓內容居中 */
     }
     
-    /* 儀式感標題 */
     h2 { 
       margin: 0 0 20px 0; color: var(--primary); 
-      font-weight: 700; letter-spacing: 3px; 
+      font-weight: 700; letter-spacing: 2px; 
+      display: inline-block;
       border-bottom: 2px solid var(--secondary);
       padding-bottom: 10px;
     }
@@ -39,6 +39,7 @@
     .app-container {
       display: flex; gap: 30px;
       max-width: 1200px; width: 100%;
+      margin: 0 auto; /* 居中 */
       align-items: flex-start; justify-content: center;
       flex-wrap: wrap; 
     }
@@ -47,19 +48,24 @@
     .canvas-section {
       flex: 0 0 auto;
       display: flex; flex-direction: column; gap: 15px; align-items: center;
+      width: 100%; max-width: 520px; /* 限制最大寬度 */
     }
     .canvas-wrapper { 
       box-shadow: var(--card-shadow); 
-      border: 10px solid white; border-radius: 4px; /* 加厚邊框 */
+      border: 8px solid white; border-radius: 4px;
       background-color: #fff;
       background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
       background-size: 20px 20px;
+      /* 確保畫布容器不會超過螢幕寬度 */
+      max-width: 100%; 
+      overflow: hidden;
     }
 
     /* 右側：工具面板 */
     .tools-section {
-      flex: 1; min-width: 320px; max-width: 450px;
+      flex: 1; min-width: 300px; max-width: 450px;
       display: flex; flex-direction: column; gap: 20px;
+      text-align: left; /* 工具區文字靠左 */
     }
 
     .tool-card {
@@ -75,55 +81,51 @@
     }
 
     button { 
-      padding: 8px 16px; cursor: pointer; 
+      padding: 8px 12px; cursor: pointer; 
       border: 1px solid #eee; background: white; 
       border-radius: 8px; font-size: 14px; color: #555;
       transition: 0.2s; font-family: inherit; font-weight: 500;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    button:hover { background: #fafafa; border-color: #ddd; transform: translateY(-1px); }
     button:active { transform: translateY(0); box-shadow: none; }
     
     button.active { 
       background: var(--primary); color: white; border-color: var(--primary); 
-      box-shadow: 0 4px 8px rgba(214, 90, 117, 0.3);
     }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
     .full-width { width: 100%; }
+    .full-width button { flex: 1; }
 
-    /* --- 分類標籤 (Tabs) --- */
+    /* 分類 Tabs */
     .category-tabs { display: flex; gap: 5px; margin-bottom: 10px; background: #f5f5f5; padding: 4px; border-radius: 8px; }
     .tab-btn {
       flex: 1; border: none; background: transparent; padding: 8px; font-size: 13px;
       border-radius: 6px; box-shadow: none; color: #666;
     }
-    .tab-btn:hover { background: #eee; transform: none; }
     .tab-btn.active-tab {
       background: white; color: var(--primary); font-weight: bold;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     .sticker-grid { 
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); 
-      gap: 10px; max-height: 300px; overflow-y: auto; padding: 5px;
-      min-height: 100px; /* 避免空的時候太扁 */
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); 
+      gap: 8px; max-height: 250px; overflow-y: auto; padding: 5px;
+      min-height: 100px;
     }
     .sticker-grid img { 
       width: 100%; aspect-ratio: 1; object-fit: contain; 
       border: 1px solid #f0f0f0; border-radius: 8px; 
-      background: #fff; transition: 0.2s; cursor: pointer;
+      background: #fff; cursor: pointer;
     }
-    .sticker-grid img:hover { transform: scale(1.1); border-color: var(--primary); }
 
-    /* 開關樣式 */
     .switch-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
     input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px; }
 
     .color-picker-wrapper {
       position: relative; overflow: hidden; width: 36px; height: 36px; border-radius: 50%;
-      border: 2px solid #fff; box-shadow: 0 0 0 1px #ddd; cursor: pointer;
+      border: 2px solid #fff; box-shadow: 0 0 0 1px #ddd; cursor: pointer; flex-shrink: 0;
     }
     input[type="color"] {
       position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
@@ -135,36 +137,33 @@
       background: rgba(74, 74, 74, 0.95); color: white; 
       padding: 10px 24px; border-radius: 30px; 
       font-size: 13px; letter-spacing: 1px;
-      opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 2000;
     }
 
-    @media (max-width: 768px) {
-      body { padding: 10px; }
-      h2 { font-size: 20px; }
-      .app-container { flex-direction: column; align-items: center; gap: 15px; }
-      .tools-section { width: 100%; max-width: 100%; }
-      .canvas-wrapper { width: 100%; max-width: 95vw; border-width: 5px; } 
-      canvas { max-width: 100%; }
+    /* 手機版特別優化 */
+    @media (max-width: 600px) {
+      h2 { font-size: 18px; }
+      .app-container { gap: 20px; }
+      .tools-section { width: 100%; min-width: auto; }
+      .btn-group button { padding: 10px; } /* 按鈕加大好按 */
     }
   </style>
 </head>
 <body>
 
-  <h2>🌸 作用年賀状製作所 </h2>
+  <h2>🌸 作用年賀状製作所 🌸</h2>
 
   <div class="app-container">
     
     <div class="canvas-section">
       <div class="canvas-wrapper">
-        <canvas id="c" width="500" height="700"></canvas>
-      </div>
+        <canvas id="c"></canvas> </div>
       
-      <div class="btn-group">
-        <button onclick="undo()" id="btn-undo" title="復原">↩️</button>
-        <button onclick="redo()" id="btn-redo" title="重做">↪️</button>
-        <div style="width: 1px; background: #ddd; margin: 0 5px;"></div>
-        <button onclick="clearCanvas()">🗑️ 重來</button>
-        <button onclick="downloadImage()" style="background: #4CAF50; color: white; border: none;">💾 保存</button>
+      <div class="btn-group" style="margin-top: 10px; width: 100%;">
+        <button onclick="undo()" id="btn-undo">↩️</button>
+        <button onclick="redo()" id="btn-redo">↪️</button>
+        <button onclick="clearCanvas()" style="flex:1">🗑️ 重來</button>
+        <button onclick="downloadImage()" style="flex:2; background: #4CAF50; color: white; border: none;">💾 保存</button>
       </div>
     </div>
 
@@ -191,7 +190,7 @@
         
         <div style="margin-top:10px; border-top:1px dashed #eee; padding-top:10px;">
            <label style="display:flex; align-items:center; gap:5px; justify-content:center; cursor:pointer; color:#888; font-size:12px;">
-             📂 從電腦上傳其他圖片
+             📂 上傳自己的圖片
              <input type="file" style="display:none" accept="image/*" onchange="handleUniversalUpload(this)">
            </label>
         </div>
@@ -200,8 +199,8 @@
       <div class="tool-card">
         <div class="card-title">操作模式</div>
         <div class="btn-group full-width">
-          <button onclick="setMode('select')" id="btn-select" class="active" style="flex:1;">✋ 調整</button>
-          <button onclick="setMode('draw')" id="btn-draw" style="flex:1;">🖌️ 塗鴉</button>
+          <button onclick="setMode('select')" id="btn-select" class="active">✋ 調整</button>
+          <button onclick="setMode('draw')" id="btn-draw">🖌️ 塗鴉</button>
         </div>
         
         <div id="brush-controls" style="margin-top: 15px; display: none; background: #f9f9f9; padding: 10px; border-radius: 8px;">
@@ -236,6 +235,7 @@
             <option value="Ma Shan Zheng">書法手寫體</option>
             <option value="Zen Maru Gothic">可愛圓體</option>
             <option value="Yuji Syuku">日式行書</option>
+            <option value="Noto Serif TC">氣質明體</option>
             <option value="Noto Sans TC">標準黑體</option>
           </select>
           <button onclick="toggleVertical()" id="btn-vertical" style="flex:1;">➡️ 橫書</button>
@@ -246,10 +246,10 @@
       <div class="tool-card">
         <div class="card-title">圖層順序</div>
         <div class="btn-group full-width">
-          <button onclick="moveLayer('front')" style="flex:1;">⬆️ 置頂</button>
-          <button onclick="moveLayer('up')" style="flex:1;">↑ 上移</button>
-          <button onclick="moveLayer('down')" style="flex:1;">↓ 下移</button>
-          <button onclick="moveLayer('back')" style="flex:1;">⬇️ 置底</button>
+          <button onclick="moveLayer('front')">⬆️ 置頂</button>
+          <button onclick="moveLayer('up')">↑ 上移</button>
+          <button onclick="moveLayer('down')">↓ 下移</button>
+          <button onclick="moveLayer('back')">⬇️ 置底</button>
         </div>
       </div>
 
@@ -263,7 +263,16 @@
     const SUPABASE_URL = 'https://kyjppevleohxkrxvghve.supabase.co'; 
     const SUPABASE_KEY = 'sb_publishable_ICm0LIiw6DHBz-s7SHUYuQ_kDqSlITB';
 
+
+    // --- 初始化 (手機版畫布大小修正) ---
+    // 計算適合的寬度：手機螢幕寬度 - 40px padding，最大不超過 500
+    const screenWidth = window.innerWidth;
+    const canvasWidth = Math.min(500, screenWidth - 30);
+    const canvasHeight = Math.min(700, window.innerHeight - 150); // 避免太長
+
     const canvas = new fabric.Canvas('c', {
+      width: canvasWidth,
+      height: 700, // 高度維持 700 或是您可以想改小一點
       backgroundColor: '#ffffff',
       isDrawingMode: false,
       preserveObjectStacking: true 
@@ -273,13 +282,12 @@
     let history = [];
     let historyRedo = [];
     let isHistoryProcessing = false;
-    let currentCategory = 'stickers'; // 預設分類
+    let currentCategory = 'stickers';
 
     // --- 歷史紀錄 (Undo/Redo) ---
     function saveState() {
       if (isHistoryProcessing) return;
       if (history.length > 30) history.shift();
-      // 存檔包含 isBackground 屬性
       history.push(JSON.stringify(canvas.toDatalessJSON(['isBackground'])));
       historyRedo = [];
       updateHistoryButtons();
@@ -336,24 +344,18 @@
     saveState();
 
 
-    // --- 雲端素材分類 (V11 新增核心) ---
-    
+    // --- 雲端素材分類 ---
     async function switchCategory(category, btn) {
       currentCategory = category;
-      
-      // 更新按鈕樣式
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
       btn.classList.add('active-tab');
 
-      // 自動切換「設為背景模式」以符合分類直覺
       const bgToggle = document.getElementById('bg-mode-toggle');
       if (category === 'backgrounds') {
         bgToggle.checked = true;
       } else {
         bgToggle.checked = false;
       }
-
-      // 重新讀取圖片
       loadCloudImages(category);
     }
 
@@ -368,18 +370,15 @@
 
       try {
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        // 讀取指定資料夾
         const { data, error } = await supabase.storage.from('assets').list(folder);
         
         if (error) throw error;
         
         listDiv.innerHTML = '';
         if (data && data.length > 0) {
-          // 過濾掉空資料夾佔位符
           const items = data.filter(i => i.name !== '.emptyFolderPlaceholder');
-          
           if (items.length === 0) {
-             listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">資料夾 ${folder} 是空的<br>請去 Supabase 上傳圖片</p>`;
+             listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">資料夾 ${folder} 是空的</p>`;
              return;
           }
 
@@ -396,16 +395,16 @@
             listDiv.appendChild(img);
           });
         } else {
-          listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">找不到資料夾 ${folder}</p>`;
+          listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">資料夾為空</p>`;
         }
       } catch (err) {
         console.error(err);
-        listDiv.innerHTML = '<p style="color:red; font-size:12px;">讀取失敗，請確認 Supabase 設定</p>';
+        listDiv.innerHTML = '<p style="color:red; font-size:12px;">讀取失敗</p>';
       }
     }
 
 
-    // --- 核心功能 (維持 V10.1 邏輯) ---
+    // --- 核心功能 ---
 
     function setMode(mode) {
       document.getElementById('btn-select').className = (mode === 'select' ? 'active' : '');
@@ -453,6 +452,7 @@
       const isBgMode = document.getElementById('bg-mode-toggle').checked;
 
       if (isBgMode) {
+        // 確保背景至少填滿畫布
         const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
         img.set({
           left: canvas.width / 2, top: canvas.height / 2,
@@ -468,8 +468,10 @@
         canvas.requestRenderAll();
         showStatus('🖼️ 背景已設定');
       } else {
-        img.scaleToWidth(150);
-        img.set({left: 150, top: 150, isBackground: false});
+        // 貼圖稍微縮小以適應手機畫面
+        const targetWidth = canvas.width * 0.4; 
+        img.scaleToWidth(targetWidth);
+        img.set({left: canvas.width/2 - targetWidth/2, top: 150, isBackground: false});
         canvas.add(img);
         canvas.setActiveObject(img);
         showStatus('✅ 圖片已加入');
@@ -497,7 +499,7 @@
       const finalVal = isVertical ? textVal.split('').join('\n') : textVal;
 
       const text = new fabric.IText(finalVal, {
-        left: 100, top: 100, fontSize: 40,
+        left: 50, top: 100, fontSize: 40,
         fontFamily: fontVal, fill: colorVal,
         textAlign: isVertical ? 'center' : 'left',
         lineHeight: isVertical ? 0.85 : 1.2
