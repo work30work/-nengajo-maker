@@ -18,7 +18,7 @@
       --text-color: #4a4a4a;
       --card-shadow: 0 8px 20px rgba(0,0,0,0.15);
       --toolbar-bg: #fff0f3;
-      --paper-color: #faf9f6; /* 紙張與橡皮擦的顏色 */
+      --paper-color: #faf9f6;
     }
 
     body { 
@@ -54,7 +54,6 @@
       position: relative;
     }
     
-    /* V25: 回歸實體背景色，最穩定 */
     .canvas-wrapper { 
       box-shadow: var(--card-shadow); 
       border: 1px solid #ddd;
@@ -64,7 +63,7 @@
       position: relative;
     }
 
-    /* 快捷控制台 */
+    /* 快捷控制台 (精簡化) */
     .quick-toolbar {
       width: 100%;
       background: var(--toolbar-bg);
@@ -86,10 +85,12 @@
     .btn-icon:disabled { opacity: 0.3; cursor: default; }
     .btn-trash { color: #e53935; border-color: #ffcdd2; }
     
-    /* 恢復底圖按鈕 (特別顯眼) */
+    /* 恢復底圖按鈕 (移到筆刷區後樣式微調) */
     .btn-restore { 
-      color: #1565c0; border-color: #bbdefb; background: #e3f2fd; 
-      font-size: 13px; font-weight: bold; padding: 8px 15px;
+      width: 100%; margin-top: 8px;
+      color: #1565c0; border: 1px solid #bbdefb; background: #e3f2fd; 
+      font-size: 13px; font-weight: bold; padding: 8px; border-radius: 6px;
+      cursor: pointer;
     }
     .btn-restore:hover { background: #bbdefb; }
 
@@ -200,7 +201,6 @@
         </div>
         
         <div class="quick-group">
-          <button onclick="cleanEraserMarks()" class="btn-icon btn-restore" title="如果不小心蓋到背景，按這個清除">✨ 移除橡皮擦痕跡</button>
           <button onclick="deleteObject()" class="btn-icon btn-trash" title="刪除選取">🗑️</button>
         </div>
 
@@ -225,7 +225,7 @@
         <div class="full-width">
           <button onclick="setMode('select')" id="btn-select" class="normal-btn active">✋ 調整</button>
           <button onclick="setMode('draw')" id="btn-draw" class="normal-btn">🖌️ 塗鴉</button>
-          <button onclick="setMode('eraser')" id="btn-eraser" class="normal-btn">🧼 橡皮擦</button>
+          <button onclick="setMode('eraser')" id="btn-eraser" class="normal-btn">⬜ 立可白</button>
         </div>
         
         <div id="brush-controls" style="margin-top: 15px; display: none; background: #f9f9f9; padding: 10px; border-radius: 8px;">
@@ -246,9 +246,9 @@
             <input type="range" id="brush-width" min="1" max="100" value="20" onchange="updateBrush()" style="flex:1;">
           </div>
           <div id="render-hint">🖌️ 毛筆/蠟筆運算較複雜，請放手後稍等渲染</div>
-          <div id="eraser-hint" style="display:none; color:#888; font-size:12px; line-height:1.4;">
-            🧼 橡皮擦 (米色覆蓋模式)<br>
-            若蓋住背景，請按下方藍色「✨移除橡皮擦痕跡」按鈕。
+          
+          <div id="eraser-restore-area" style="display:none;">
+             <button onclick="cleanEraserMarks()" class="btn-restore">✨ 刮除所有立可白 (恢復底圖)</button>
           </div>
         </div>
       </div>
@@ -318,17 +318,18 @@
 
   <div id="status-msg">操作成功</div>
 
- <script>
+  <script>
     // ⚠️⚠️⚠️ 請在這裡填入您的 Supabase 資料 ⚠️⚠️⚠️
     const SUPABASE_URL = 'https://kyjppevleohxkrxvghve.supabase.co'; 
     const SUPABASE_KEY = 'sb_publishable_ICm0LIiw6DHBz-s7SHUYuQ_kDqSlITB';
+
 
     const screenWidth = window.innerWidth;
     const maxCanvasWidth = 500;
     const canvasWidth = Math.min(maxCanvasWidth, screenWidth - 25);
     const canvasHeight = canvasWidth * 1.48; 
 
-    // V25: Solid Background Color #faf9f6
+    // Solid Background Color #faf9f6
     const canvas = new fabric.Canvas('c', {
       width: canvasWidth,
       height: canvasHeight,
@@ -407,7 +408,6 @@
     }
     saveState();
 
-    // 雲端素材
     async function switchCategory(category, btn) {
       currentCategory = category;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
@@ -451,15 +451,13 @@
       }
     }
 
-    // --- V25 核心：清除所有橡皮擦痕跡 (米色筆跡) ---
+    // 清除所有立可白痕跡
     function cleanEraserMarks() {
       const objects = canvas.getObjects();
       let removedCount = 0;
       
-      // 倒序刪除
       for (let i = objects.length - 1; i >= 0; i--) {
         const obj = objects[i];
-        // 條件：是線條 (path) 且顏色是米色 (#faf9f6)
         if (obj.type === 'path' && obj.stroke === '#faf9f6') {
           canvas.remove(obj);
           removedCount++;
@@ -470,13 +468,12 @@
       saveState();
       
       if (removedCount > 0) {
-        showStatus(`🧹 已清除 ${removedCount} 筆橡皮擦，背景恢復！`);
+        showStatus(`🧹 已刮除 ${removedCount} 筆立可白，背景恢復！`);
       } else {
-        showStatus('目前沒有橡皮擦痕跡喔');
+        showStatus('目前沒有立可白痕跡');
       }
     }
 
-    // 模式切換
     function setMode(mode) {
       document.getElementById('btn-select').className = (mode === 'select' ? 'normal-btn active' : 'normal-btn');
       document.getElementById('btn-draw').className = (mode === 'draw' ? 'normal-btn active' : 'normal-btn');
@@ -485,7 +482,7 @@
       const controls = document.getElementById('brush-controls');
       const typeRow = document.getElementById('brush-type-row');
       const hint = document.getElementById('render-hint');
-      const eraserHint = document.getElementById('eraser-hint');
+      const restoreArea = document.getElementById('eraser-restore-area'); // 新按鈕區域
 
       if (mode === 'select') {
         canvas.isDrawingMode = false;
@@ -495,9 +492,8 @@
         canvas.isDrawingMode = true;
         controls.style.display = 'block';
         typeRow.style.display = 'flex'; 
-        eraserHint.style.display = 'none';
+        restoreArea.style.display = 'none'; // 塗鴉時不顯示刮除鈕
         
-        // 切回畫筆時，重置筆刷設定
         updateBrush(); 
       } 
       else if (mode === 'eraser') {
@@ -505,9 +501,9 @@
         controls.style.display = 'block';
         typeRow.style.display = 'none'; 
         hint.style.display = 'none';
-        eraserHint.style.display = 'block';
+        restoreArea.style.display = 'block'; // 立可白模式才顯示刮除鈕
 
-        // V25: 橡皮擦 = 米色畫筆 (最穩定方案)
+        // 立可白模式 (米色覆蓋)
         const width = parseInt(document.getElementById('brush-width').value, 10);
         const brush = new fabric.PencilBrush(canvas);
         brush.width = width; 
@@ -517,7 +513,6 @@
       }
     }
 
-    // 筆刷更新 (確保不會用到 destination-out)
     function updateBrush() {
       if (document.getElementById('btn-eraser').classList.contains('active')) return;
 
@@ -577,7 +572,6 @@
       hint.style.display = showHint ? 'block' : 'none';
     }
 
-    // 圖片處理 (背景直接入 Canvas)
     function processImage(source, isFile) {
       const isBgMode = document.getElementById('bg-mode-toggle').checked;
       
@@ -656,7 +650,6 @@
       if (dir === 'back') active.sendToBack();
       if (dir === 'up') active.bringForward();
       if (dir === 'down') active.sendBackwards();
-      
       canvas.requestRenderAll(); 
       saveState();
     }
