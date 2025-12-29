@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🌸 作用年賀状製作所 🌸</title>
+  <title>🌸 作用年賀状製作所 (V32 補丁管理版)</title>
   
   <link href="https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&family=Kaisei+Decol:wght@400;700&family=Ma+Shan+Zheng&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&family=Potta+One&family=Reggae+One&family=RocknRoll+One&family=Yuji+Syuku&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
   
@@ -63,7 +63,6 @@
       position: relative;
     }
 
-    /* 快捷控制台 (精簡化) */
     .quick-toolbar {
       width: 100%;
       background: var(--toolbar-bg);
@@ -85,15 +84,6 @@
     .btn-icon:disabled { opacity: 0.3; cursor: default; }
     .btn-trash { color: #e53935; border-color: #ffcdd2; }
     
-    /* 恢復底圖按鈕 (移到筆刷區後樣式微調) */
-    .btn-restore { 
-      width: 100%; margin-top: 8px;
-      color: #1565c0; border: 1px solid #bbdefb; background: #e3f2fd; 
-      font-size: 13px; font-weight: bold; padding: 8px; border-radius: 6px;
-      cursor: pointer;
-    }
-    .btn-restore:hover { background: #bbdefb; }
-
     .tools-section {
       flex: 1; min-width: 300px; max-width: 450px;
       display: flex; flex-direction: column; gap: 15px;
@@ -185,7 +175,7 @@
 </head>
 <body>
 
-  <h2>🌸 作用年賀状製作所 🌸</h2>
+  <h2>🌸 作用年賀状製作所 (V32)</h2>
 
   <div class="app-container">
     
@@ -199,11 +189,9 @@
           <button onclick="undo()" id="btn-undo" class="btn-icon" title="復原">↩️</button>
           <button onclick="redo()" id="btn-redo" class="btn-icon" title="重做">↪️</button>
         </div>
-        
         <div class="quick-group">
           <button onclick="deleteObject()" class="btn-icon btn-trash" title="刪除選取">🗑️</button>
         </div>
-
         <div class="quick-group">
           <button onclick="moveLayer('front')" class="btn-icon" title="置頂">🔝</button>
           <button onclick="moveLayer('up')" class="btn-icon" title="上移">⬆️</button>
@@ -226,29 +214,41 @@
           <button onclick="setMode('select')" id="btn-select" class="normal-btn active">✋ 調整</button>
           <button onclick="setMode('draw')" id="btn-draw" class="normal-btn">🖌️ 塗鴉</button>
           <button onclick="setMode('eraser')" id="btn-eraser" class="normal-btn">⬜ 立可白</button>
+          <button onclick="setMode('patch')" id="btn-patch" class="normal-btn" style="color: #673ab7; border-color: #d1c4e9; background: #ede7f6;">🩹 補丁</button>
         </div>
         
         <div id="brush-controls" style="margin-top: 15px; display: none; background: #f9f9f9; padding: 10px; border-radius: 8px;">
-          <div id="brush-type-row" class="tool-row">
-            <div class="color-picker-wrapper" title="筆刷顏色">
-              <input type="color" id="brush-color" value="#000000" onchange="updateBrush()">
+          <div id="brush-settings-group">
+            <div id="brush-type-row" class="tool-row">
+              <div class="color-picker-wrapper" title="筆刷顏色">
+                <input type="color" id="brush-color" value="#000000" onchange="updateBrush()">
+              </div>
+              <select id="brush-type" onchange="updateBrush()" style="flex:1;">
+                <option value="calligraphy">✒️ 渲染毛筆 (Ink)</option>
+                <option value="crayon">🖍️ 蠟筆 (Crayon)</option>
+                <option value="pencil">✏️ 鉛筆 (Pencil)</option>
+                <option value="marker">🖊️ 螢光筆 (Marker)</option>
+                <option value="spray">💨 噴槍 (Spray)</option>
+              </select>
             </div>
-            <select id="brush-type" onchange="updateBrush()" style="flex:1;">
-              <option value="calligraphy">✒️ 渲染毛筆 (Ink)</option>
-              <option value="crayon">🖍️ 蠟筆 (Crayon)</option>
-              <option value="pencil">✏️ 鉛筆 (Pencil)</option>
-              <option value="marker">🖊️ 螢光筆 (Marker)</option>
-              <option value="spray">💨 噴槍 (Spray)</option>
-            </select>
+            <div class="tool-row">
+              <span style="font-size:12px;">粗細</span>
+              <input type="range" id="brush-width" min="1" max="100" value="20" onchange="updateBrush()" style="flex:1;">
+            </div>
+            <div id="render-hint">🖌️ 毛筆/蠟筆運算較複雜，請放手後稍等渲染</div>
+            <div id="eraser-restore-area" style="display:none;">
+               <button onclick="cleanEraserMarks()" class="btn-restore">✨ 刮除所有立可白</button>
+            </div>
           </div>
-          <div class="tool-row">
-            <span style="font-size:12px;">粗細</span>
-            <input type="range" id="brush-width" min="1" max="100" value="20" onchange="updateBrush()" style="flex:1;">
-          </div>
-          <div id="render-hint">🖌️ 毛筆/蠟筆運算較複雜，請放手後稍等渲染</div>
-          
-          <div id="eraser-restore-area" style="display:none;">
-             <button onclick="cleanEraserMarks()" class="btn-restore">✨ 刮除所有立可白 (恢復底圖)</button>
+
+          <div id="patch-settings-area" style="display:none;">
+            <p style="color:#673ab7; font-size:12px; font-weight:bold; margin-bottom:5px;">
+              🩹 補丁模式 (預設鎖定，防止誤觸)
+            </p>
+            <label class="switch-label" style="background:#e3f2fd; padding:8px; border-radius:6px; color:#1565c0; font-weight:bold;">
+              <input type="checkbox" id="patch-edit-toggle" onchange="togglePatchEditMode()"> 
+              🔓 選取/刪除補丁 (勾選後可選取)
+            </label>
           </div>
         </div>
       </div>
@@ -261,16 +261,13 @@
             <span style="color:var(--primary); font-weight:bold;">設為背景</span>
           </label>
         </div>
-
         <div class="category-tabs">
           <button class="tab-btn active-tab" onclick="switchCategory('stickers', this)">🐶 貼圖</button>
           <button class="tab-btn" onclick="switchCategory('backgrounds', this)">🖼️ 背景</button>
         </div>
-
         <div id="sticker-list" class="sticker-grid">
           <p style="font-size:12px; color:#999; padding:10px;">讀取中...</p>
         </div>
-        
         <div style="margin-top:10px; border-top:1px dashed #eee; padding-top:10px;">
            <label style="display:flex; align-items:center; gap:5px; justify-content:center; cursor:pointer; color:#888; font-size:12px;">
              📂 上傳圖片
@@ -287,7 +284,6 @@
             <input type="color" id="text-color" value="#d65a75">
           </div>
         </div>
-
         <div class="tool-row">
           <select id="font-select" style="flex:2;">
             <optgroup label="書法手寫類">
@@ -309,7 +305,6 @@
           </select>
           <button onclick="toggleVertical()" id="btn-vertical" style="flex:1;" class="normal-btn">➡️ 橫書</button>
         </div>
-        
         <button onclick="addText()" class="normal-btn" style="width:100%; background:#f0f0f0;">➕ 加入文字</button>
       </div>
 
@@ -323,13 +318,11 @@
     const SUPABASE_URL = 'https://kyjppevleohxkrxvghve.supabase.co'; 
     const SUPABASE_KEY = 'sb_publishable_ICm0LIiw6DHBz-s7SHUYuQ_kDqSlITB';
 
-
     const screenWidth = window.innerWidth;
     const maxCanvasWidth = 500;
     const canvasWidth = Math.min(maxCanvasWidth, screenWidth - 25);
     const canvasHeight = canvasWidth * 1.48; 
 
-    // Solid Background Color #faf9f6
     const canvas = new fabric.Canvas('c', {
       width: canvasWidth,
       height: canvasHeight,
@@ -339,16 +332,22 @@
       selection: true 
     });
 
+    let currentBgUrl = '';
     let isVertical = false;
     let history = [];
     let historyRedo = [];
     let isHistoryProcessing = false;
     let currentCategory = 'stickers';
+    
+    let patchMode = false;
+    let patchEditMode = false; // V32: 控制是否可選取補丁
+    let patchRect = null;
+    let patchStartX = 0;
+    let patchStartY = 0;
 
-    // 歷史紀錄
     function saveState() {
       if (isHistoryProcessing) return;
-      const currentState = JSON.stringify(canvas.toDatalessJSON(['isBackground']));
+      const currentState = JSON.stringify(canvas.toDatalessJSON(['isBackground', 'isPatch'])); 
       if (history.length > 0 && history[history.length - 1] === currentState) return;
       if (history.length > 30) history.shift();
       history.push(currentState);
@@ -369,10 +368,122 @@
       canvas.requestRenderAll(); 
     }
 
-    canvas.on('object:added', (e) => { if(!isHistoryProcessing) saveState(); });
+    // 統一管理物件狀態 (包含補丁)
+    function updateObjectSelectability() {
+      canvas.getObjects().forEach(obj => {
+        if (obj.isBackground) return; 
+
+        if (patchMode) {
+          // V32: 如果在補丁模式
+          if (patchEditMode) {
+             // 編輯模式：只允許選取補丁，其他貼圖不給動 (避免干擾)
+             if (obj.isPatch) obj.set({ selectable: true, evented: true });
+             else obj.set({ selectable: false, evented: false });
+          } else {
+             // 畫圖模式：全鎖，只允許畫框
+             obj.set({ selectable: false, evented: false });
+          }
+        } else {
+          // 其他模式：補丁鎖死，其他可動
+          if (obj.isPatch) obj.set({ selectable: false, evented: false });
+          else obj.set({ selectable: true, evented: true });
+        }
+      });
+      canvas.requestRenderAll();
+    }
+
+    canvas.on('object:added', (e) => { 
+        if(!isHistoryProcessing && !patchMode) saveState(); 
+        updateObjectSelectability(); 
+    });
     canvas.on('object:modified', saveState);
     canvas.on('object:removed', saveState);
     canvas.on('path:created', saveState);
+
+    // V32: 切換補丁編輯狀態
+    function togglePatchEditMode() {
+      patchEditMode = document.getElementById('patch-edit-toggle').checked;
+      
+      // 如果進入編輯模式，要取消當前的選取(如果有)，並重新設定可選取性
+      canvas.discardActiveObject();
+      updateObjectSelectability();
+      
+      if(patchEditMode) showStatus('🔓 現在可以點選補丁進行刪除');
+      else showStatus('🔒 補丁已鎖定，可以繼續畫新補丁');
+    }
+
+    // 補丁拖曳邏輯
+    canvas.on('mouse:down', function(opt) {
+        if (!patchMode || patchEditMode) return; // 編輯模式下不畫框
+        
+        const pointer = canvas.getPointer(opt.e);
+        patchStartX = pointer.x;
+        patchStartY = pointer.y;
+
+        patchRect = new fabric.Rect({
+            left: patchStartX, top: patchStartY,
+            width: 0, height: 0,
+            fill: 'rgba(103, 58, 183, 0.2)', 
+            stroke: '#673ab7',
+            strokeWidth: 2,
+            strokeDashArray: [5, 5],
+            selectable: false, evented: false
+        });
+        canvas.add(patchRect);
+    });
+
+    canvas.on('mouse:move', function(opt) {
+        if (!patchMode || patchEditMode || !patchRect) return;
+        const pointer = canvas.getPointer(opt.e);
+        if (pointer.x < patchStartX) patchRect.set({ left: pointer.x });
+        if (pointer.y < patchStartY) patchRect.set({ top: pointer.y });
+        patchRect.set({
+            width: Math.abs(pointer.x - patchStartX),
+            height: Math.abs(pointer.y - patchStartY)
+        });
+        canvas.requestRenderAll();
+    });
+
+    canvas.on('mouse:up', function() {
+        if (!patchMode || patchEditMode || !patchRect) return;
+        const cropLeft = patchRect.left;
+        const cropTop = patchRect.top;
+        const cropWidth = patchRect.width;
+        const cropHeight = patchRect.height;
+        canvas.remove(patchRect);
+        patchRect = null;
+        if (cropWidth < 5 || cropHeight < 5) return; 
+        createPatch(cropLeft, cropTop, cropWidth, cropHeight);
+    });
+
+    function createPatch(left, top, width, height) {
+        const bgObj = canvas.getObjects().find(o => o.isBackground);
+        if (!bgObj) {
+            showStatus('⚠️ 請先設定背景圖才能使用補丁');
+            return;
+        }
+        const otherObjects = canvas.getObjects().filter(o => o !== bgObj);
+        otherObjects.forEach(o => o.opacity = 0); 
+        
+        const dataURL = canvas.toDataURL({
+            left: left, top: top, width: width, height: height,
+            format: 'png', multiplier: 1
+        });
+
+        otherObjects.forEach(o => o.opacity = 1);
+
+        fabric.Image.fromURL(dataURL, function(img) {
+            img.set({
+                left: left, top: top,
+                selectable: false, 
+                evented: false,
+                isPatch: true
+            });
+            canvas.add(img);
+            saveState();
+            showStatus('✅ 補丁已貼上');
+        });
+    }
 
     function undo() {
       if (history.length <= 1) return;
@@ -381,6 +492,7 @@
       const content = history[history.length - 1];
       canvas.loadFromJSON(content, () => {
         restoreLocks();
+        updateObjectSelectability();
         isHistoryProcessing = false;
         updateHistoryButtons();
         showStatus('已復原');
@@ -394,6 +506,7 @@
       history.push(content);
       canvas.loadFromJSON(content, () => {
         restoreLocks();
+        updateObjectSelectability();
         isHistoryProcessing = false;
         updateHistoryButtons();
         showStatus('已重做');
@@ -406,56 +519,10 @@
       if(undoBtn) undoBtn.disabled = (history.length <= 1);
       if(redoBtn) redoBtn.disabled = (historyRedo.length === 0);
     }
-    saveState();
 
-    async function switchCategory(category, btn) {
-      currentCategory = category;
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
-      btn.classList.add('active-tab');
-      const bgToggle = document.getElementById('bg-mode-toggle');
-      bgToggle.checked = (category === 'backgrounds');
-      loadCloudImages(category);
-    }
-
-    async function loadCloudImages(folder) {
-      const listDiv = document.getElementById('sticker-list');
-      if (SUPABASE_URL.includes('xxxx')) {
-        listDiv.innerHTML = '<p style="color:#d65a75; font-size:12px;">⚠️ 請填 Key</p>';
-        return;
-      }
-      listDiv.innerHTML = '<p style="font-size:12px; color:#999; padding:5px;">讀取中...</p>';
-      try {
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        const { data, error } = await supabase.storage.from('assets').list(folder);
-        if (error) throw error;
-        listDiv.innerHTML = '';
-        if (data && data.length > 0) {
-          const items = data.filter(i => i.name !== '.emptyFolderPlaceholder');
-          if (items.length === 0) {
-             listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">資料夾 ${folder} 是空的</p>`;
-             return;
-          }
-          items.forEach(item => {
-            const url = supabase.storage.from('assets').getPublicUrl(folder + '/' + item.name).data.publicUrl;
-            const img = document.createElement('img');
-            img.src = url;
-            img.onclick = () => { processImage(url, false); };
-            listDiv.appendChild(img);
-          });
-        } else {
-          listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">資料夾為空</p>`;
-        }
-      } catch (err) {
-        console.error(err);
-        listDiv.innerHTML = '<p style="color:red; font-size:12px;">讀取失敗</p>';
-      }
-    }
-
-    // 清除所有立可白痕跡
     function cleanEraserMarks() {
       const objects = canvas.getObjects();
       let removedCount = 0;
-      
       for (let i = objects.length - 1; i >= 0; i--) {
         const obj = objects[i];
         if (obj.type === 'path' && obj.stroke === '#faf9f6') {
@@ -463,60 +530,95 @@
           removedCount++;
         }
       }
-      
       restoreLocks();
       saveState();
+      if (removedCount > 0) showStatus(`🧹 已刮除 ${removedCount} 筆立可白`);
+      else showStatus('目前沒有立可白痕跡');
+    }
+
+    // V32: 更新刪除邏輯，允許刪除補丁 (當處於可選狀態時)
+    function deleteObject() {
+      const active = canvas.getActiveObject();
+      if (!active) return showStatus('請先點選物件');
       
-      if (removedCount > 0) {
-        showStatus(`🧹 已刮除 ${removedCount} 筆立可白，背景恢復！`);
-      } else {
-        showStatus('目前沒有立可白痕跡');
-      }
+      // 背景永遠不能刪
+      if (active.isBackground) return showStatus('背景無法刪除');
+      
+      // 補丁：必須在編輯模式下才能刪 (理論上如果能選到就是可刪，但雙重保險)
+      if (active.isPatch && !patchEditMode) return showStatus('補丁已鎖定');
+
+      canvas.remove(active);
+      saveState();
+      showStatus('已刪除');
     }
 
     function setMode(mode) {
       document.getElementById('btn-select').className = (mode === 'select' ? 'normal-btn active' : 'normal-btn');
       document.getElementById('btn-draw').className = (mode === 'draw' ? 'normal-btn active' : 'normal-btn');
       document.getElementById('btn-eraser').className = (mode === 'eraser' ? 'normal-btn active' : 'normal-btn');
+      document.getElementById('btn-patch').className = (mode === 'patch' ? 'normal-btn active' : 'normal-btn');
 
       const controls = document.getElementById('brush-controls');
-      const typeRow = document.getElementById('brush-type-row');
-      const hint = document.getElementById('render-hint');
-      const restoreArea = document.getElementById('eraser-restore-area'); // 新按鈕區域
+      const brushSettings = document.getElementById('brush-settings-group');
+      const eraserRestore = document.getElementById('eraser-restore-area');
+      const patchSettings = document.getElementById('patch-settings-area');
+
+      // 重置狀態
+      patchMode = false;
+      canvas.isDrawingMode = false;
+      canvas.selection = true; 
+      
+      // 切換模式時，預設把補丁編輯關掉 (回到安全狀態)
+      document.getElementById('patch-edit-toggle').checked = false;
+      patchEditMode = false;
 
       if (mode === 'select') {
-        canvas.isDrawingMode = false;
         controls.style.display = 'none';
       } 
       else if (mode === 'draw') {
         canvas.isDrawingMode = true;
         controls.style.display = 'block';
-        typeRow.style.display = 'flex'; 
-        restoreArea.style.display = 'none'; // 塗鴉時不顯示刮除鈕
+        brushSettings.style.display = 'block';
+        eraserRestore.style.display = 'none';
+        patchSettings.style.display = 'none';
         
+        document.getElementById('brush-type-row').style.display = 'flex';
+        if(canvas.freeDrawingBrush) canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
         updateBrush(); 
       } 
       else if (mode === 'eraser') {
         canvas.isDrawingMode = true;
         controls.style.display = 'block';
-        typeRow.style.display = 'none'; 
-        hint.style.display = 'none';
-        restoreArea.style.display = 'block'; // 立可白模式才顯示刮除鈕
+        brushSettings.style.display = 'block';
+        eraserRestore.style.display = 'block';
+        patchSettings.style.display = 'none';
+        
+        document.getElementById('brush-type-row').style.display = 'none';
 
-        // 立可白模式 (米色覆蓋)
         const width = parseInt(document.getElementById('brush-width').value, 10);
         const brush = new fabric.PencilBrush(canvas);
         brush.width = width; 
         brush.color = "#faf9f6"; 
         brush.shadow = null;
         canvas.freeDrawingBrush = brush;
+        canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
       }
+      else if (mode === 'patch') {
+        patchMode = true;
+        canvas.selection = false; 
+        
+        controls.style.display = 'block';
+        brushSettings.style.display = 'none'; 
+        patchSettings.style.display = 'block';
+      }
+      
+      updateObjectSelectability();
     }
 
     function updateBrush() {
       if (document.getElementById('btn-eraser').classList.contains('active')) return;
+      if (patchMode || !canvas.isDrawingMode) return; 
 
-      if (!canvas.isDrawingMode) return;
       const type = document.getElementById('brush-type').value;
       const color = document.getElementById('brush-color').value;
       const width = parseInt(document.getElementById('brush-width').value, 10);
@@ -525,6 +627,8 @@
       let brush;
       let showHint = false;
       
+      if(canvas.freeDrawingBrush) canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
+
       if (type === 'calligraphy') {
         brush = new fabric.SprayBrush(canvas);
         brush.width = width * 1.5;
@@ -570,6 +674,49 @@
 
       canvas.freeDrawingBrush = brush;
       hint.style.display = showHint ? 'block' : 'none';
+    }
+
+    async function switchCategory(category, btn) {
+      currentCategory = category;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
+      btn.classList.add('active-tab');
+      const bgToggle = document.getElementById('bg-mode-toggle');
+      bgToggle.checked = (category === 'backgrounds');
+      loadCloudImages(category);
+    }
+
+    async function loadCloudImages(folder) {
+      const listDiv = document.getElementById('sticker-list');
+      if (SUPABASE_URL.includes('xxxx')) {
+        listDiv.innerHTML = '<p style="color:#d65a75; font-size:12px;">⚠️ 請填 Key</p>';
+        return;
+      }
+      listDiv.innerHTML = '<p style="font-size:12px; color:#999; padding:5px;">讀取中...</p>';
+      try {
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const { data, error } = await supabase.storage.from('assets').list(folder);
+        if (error) throw error;
+        listDiv.innerHTML = '';
+        if (data && data.length > 0) {
+          const items = data.filter(i => i.name !== '.emptyFolderPlaceholder');
+          if (items.length === 0) {
+             listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">資料夾 ${folder} 是空的</p>`;
+             return;
+          }
+          items.forEach(item => {
+            const url = supabase.storage.from('assets').getPublicUrl(folder + '/' + item.name).data.publicUrl;
+            const img = document.createElement('img');
+            img.src = url;
+            img.onclick = () => { processImage(url, false); };
+            listDiv.appendChild(img);
+          });
+        } else {
+          listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">資料夾為空</p>`;
+        }
+      } catch (err) {
+        console.error(err);
+        listDiv.innerHTML = '<p style="color:red; font-size:12px;">讀取失敗</p>';
+      }
     }
 
     function processImage(source, isFile) {
@@ -644,7 +791,7 @@
     function moveLayer(dir) {
       const active = canvas.getActiveObject();
       if (!active) return showStatus('請先選取物件');
-      if (active.selectable === false || active.isBackground) return showStatus('背景不能移動');
+      if (active.selectable === false || active.isBackground || active.isPatch) return showStatus('背景與補丁不能移動');
 
       if (dir === 'front') active.bringToFront();
       if (dir === 'back') active.sendToBack();
@@ -657,7 +804,12 @@
     function deleteObject() {
       const active = canvas.getActiveObject();
       if (!active) return showStatus('請先點選物件');
+      
+      // V32: 刪除條件更新
       if (active.isBackground) return showStatus('背景無法刪除');
+      // 如果是補丁，且不在編輯模式，禁止刪除
+      if (active.isPatch && !patchEditMode) return showStatus('補丁已鎖定 (請勾選解鎖)');
+
       canvas.remove(active);
       saveState();
       showStatus('已刪除');
@@ -671,7 +823,7 @@
     }
     
     function clearCanvas() {
-      if(confirm('確定要清空塗鴉與貼圖嗎？(背景會保留)')) { 
+      if(confirm('確定要清空塗鴉嗎？')) { 
         canvas.clear(); 
         canvas.setBackgroundColor('#faf9f6', canvas.renderAll.bind(canvas));
         history = []; saveState();
