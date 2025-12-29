@@ -26,7 +26,6 @@
       font-family: "Zen Maru Gothic", "Noto Sans TC", sans-serif; 
       margin: 0; padding: 20px 10px;
       text-align: center;
-      /* 防止手機向下拉重新整理，影響畫畫體驗 */
       overscroll-behavior: none;
     }
     
@@ -58,19 +57,19 @@
     .canvas-wrapper { 
       box-shadow: var(--card-shadow); 
       border: 1px solid #ddd;
-      background-color: #faf9f6; /* 米黃紙色 */
+      background-color: #faf9f6;
       max-width: 100%; 
       overflow: hidden;
       z-index: 10;
     }
 
-    /* --- V16 重點：快捷控制台 (Quick Toolbar) --- */
+    /* 快捷控制台 */
     .quick-toolbar {
       width: 100%;
       background: var(--toolbar-bg);
       padding: 8px;
       box-sizing: border-box;
-      border-radius: 0 0 12px 12px; /* 下方圓角 */
+      border-radius: 0 0 12px 12px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
@@ -81,22 +80,15 @@
       border-top: none;
     }
 
-    .quick-group {
-      display: flex; gap: 5px; align-items: center;
-    }
+    .quick-group { display: flex; gap: 5px; align-items: center; }
 
-    /* 快捷按鈕樣式 */
     .btn-icon {
-      padding: 8px 10px;
-      font-size: 16px;
+      padding: 8px 10px; font-size: 16px;
       background: white; border: 1px solid #ecc;
-      border-radius: 6px; cursor: pointer;
-      color: #666;
+      border-radius: 6px; cursor: pointer; color: #666;
     }
     .btn-icon:hover { background: #fff5f7; color: var(--primary); }
     .btn-icon:disabled { opacity: 0.3; cursor: default; }
-
-    /* 刪除按鈕 */
     .btn-trash { color: #e53935; border-color: #ffcdd2; }
     
     /* 右側：工具面板 */
@@ -118,7 +110,6 @@
       display: flex; justify-content: space-between; align-items: center;
     }
 
-    /* 一般按鈕 */
     button.normal-btn { 
       padding: 10px 12px; cursor: pointer;
       border: 1px solid #eee; background: white; 
@@ -130,14 +121,10 @@
       background: var(--primary); color: white; border-color: var(--primary); 
     }
 
-    .tool-row {
-      display: flex; gap: 8px; margin-bottom: 8px; 
-      flex-wrap: wrap; align-items: center;
-    }
+    .tool-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
     .full-width { width: 100%; display: flex; gap:5px; }
     .full-width button { flex: 1; }
 
-    /* 雲端素材區 */
     .category-tabs { display: flex; gap: 5px; margin-bottom: 10px; background: #f5f5f5; padding: 4px; border-radius: 8px; }
     .tab-btn {
       flex: 1; border: none; background: transparent; padding: 8px; font-size: 13px;
@@ -183,7 +170,6 @@
     @media (max-width: 600px) {
       .app-container { gap: 15px; }
       .tools-section { width: 100%; min-width: auto; }
-      /* 手機上快捷列按鈕稍微縮小一點 */
       .btn-icon { padding: 8px 12px; font-size: 14px; }
       .quick-toolbar { justify-content: center; gap: 10px; }
     }
@@ -205,11 +191,9 @@
           <button onclick="undo()" id="btn-undo" class="btn-icon" title="復原">↩️</button>
           <button onclick="redo()" id="btn-redo" class="btn-icon" title="重做">↪️</button>
         </div>
-        
         <div class="quick-group">
           <button onclick="deleteObject()" class="btn-icon btn-trash" title="刪除選取">🗑️</button>
         </div>
-
         <div class="quick-group">
           <button onclick="moveLayer('front')" class="btn-icon" title="置頂">🔝</button>
           <button onclick="moveLayer('up')" class="btn-icon" title="上移">⬆️</button>
@@ -239,8 +223,8 @@
               <input type="color" id="brush-color" value="#000000" onchange="updateBrush()">
             </div>
             <select id="brush-type" onchange="updateBrush()" style="flex:1;">
-              <option value="calligraphy">✒️ 毛筆 (Ink)</option>
-              <option value="crayon">🖍️ 蠟筆 (Crayon) ✨新!</option>
+              <option value="calligraphy">✒️ 枯筆毛筆 (Dry Ink)</option>
+              <option value="crayon">🖍️ 蠟筆 (Crayon)</option>
               <option value="pencil">✏️ 鉛筆 (Pencil)</option>
               <option value="marker">🖊️ 螢光筆 (Marker)</option>
               <option value="spray">💨 噴槍 (Spray)</option>
@@ -249,7 +233,7 @@
           </div>
           <div class="tool-row">
             <span style="font-size:12px;">粗細</span>
-            <input type="range" id="brush-width" min="1" max="50" value="12" onchange="updateBrush()" style="flex:1;">
+            <input type="range" id="brush-width" min="1" max="50" value="15" onchange="updateBrush()" style="flex:1;">
           </div>
         </div>
       </div>
@@ -282,7 +266,6 @@
 
       <div class="tool-card">
         <div class="card-title">文字工具</div>
-        
         <div class="tool-row">
           <input type="text" id="text-input" placeholder="輸入賀詞..." value="新年快樂" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
           <div class="color-picker-wrapper" title="文字顏色">
@@ -325,7 +308,6 @@
     const SUPABASE_URL = 'https://kyjppevleohxkrxvghve.supabase.co'; 
     const SUPABASE_KEY = 'sb_publishable_ICm0LIiw6DHBz-s7SHUYuQ_kDqSlITB';
 
-    // --- 初始化 ---
     const screenWidth = window.innerWidth;
     const maxCanvasWidth = 500;
     const canvasWidth = Math.min(maxCanvasWidth, screenWidth - 25);
@@ -345,7 +327,6 @@
     let isHistoryProcessing = false;
     let currentCategory = 'stickers';
 
-    // --- 歷史紀錄 ---
     function saveState() {
       if (isHistoryProcessing) return;
       const currentState = JSON.stringify(canvas.toDatalessJSON(['isBackground']));
@@ -408,7 +389,6 @@
     }
     saveState();
 
-    // --- 雲端素材 ---
     async function switchCategory(category, btn) {
       currentCategory = category;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
@@ -454,7 +434,6 @@
       }
     }
 
-    // --- 核心功能 ---
     function setMode(mode) {
       document.getElementById('btn-select').className = (mode === 'select' ? 'normal-btn active' : 'normal-btn');
       document.getElementById('btn-draw').className = (mode === 'draw' ? 'normal-btn active' : 'normal-btn');
@@ -477,16 +456,20 @@
       let brush;
       
       if (type === 'calligraphy') {
-        brush = new fabric.PencilBrush(canvas);
-        brush.width = width;
-        const c = new fabric.Color(color);
-        c.setAlpha(0.8);
-        brush.color = c.toRgba();
-        brush.shadow = new fabric.Shadow({ blur: 4, offsetX: 0, offsetY: 0, color: c.toRgba() });
-        brush.strokeLineCap = 'round';
+        // V4: 枯筆效果 (Dry Ink) - 密度降低，透明度降低
+        brush = new fabric.SprayBrush(canvas);
+        brush.width = width * 1.5;
+        brush.density = 25; // 降低密度 -> 產生飛白顆粒感
+        brush.dotWidth = 0.5;
+        brush.dotWidthVariance = 0.5;
+        brush.randomOpacity = true; 
         
+        // 顏色透明度 (Ink effect)
+        const c = new fabric.Color(color);
+        c.setAlpha(0.6); // 墨色淡一點
+        brush.color = c.toRgba();
+
       } else if (type === 'crayon') {
-        // 蠟筆效果：用高密度的噴槍模擬
         brush = new fabric.SprayBrush(canvas);
         brush.width = width * 1.5;
         brush.density = 50; 
@@ -494,14 +477,12 @@
         brush.dotWidthVariance = 1;
         brush.randomOpacity = true;
         brush.color = color;
-        brush.shadow = null;
 
       } else if (type === 'spray') {
         brush = new fabric.SprayBrush(canvas);
         brush.width = width * 2;
-        brush.density = 20; // 普通噴槍比較散
+        brush.density = 20; 
         brush.color = color;
-        brush.shadow = null;
 
       } else if (type === 'marker') {
         brush = new fabric.PencilBrush(canvas);
@@ -600,7 +581,7 @@
       if (dir === 'up') active.bringForward();
       if (dir === 'down') active.sendBackwards();
       
-      canvas.discardActiveObject();
+      // ⚠️ 關鍵修正：移除了 discardActiveObject，保持選取狀態
       canvas.requestRenderAll();
       saveState();
     }
