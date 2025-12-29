@@ -26,7 +26,6 @@
       font-family: "Zen Maru Gothic", "Noto Sans TC", sans-serif; 
       margin: 0; padding: 20px 10px;
       text-align: center;
-      /* ⚠️ V20: 移除 overscroll-behavior 和 touch-action，恢復正常捲動 */
     }
     
     h2 { 
@@ -46,7 +45,6 @@
       flex-wrap: wrap; 
     }
 
-    /* 左側：畫布區 */
     .canvas-section {
       flex: 0 0 auto;
       display: flex; flex-direction: column; gap: 0; align-items: center;
@@ -54,21 +52,17 @@
       position: relative;
     }
     
-    /* 畫布容器：CSS 背景層與 Canvas 分離 */
     .canvas-wrapper { 
       box-shadow: var(--card-shadow); 
       border: 1px solid #ddd;
       background-color: transparent; 
       max-width: 100%; 
-      /* overflow: hidden; */ /* 移除，避免切到陰影 */
       z-index: 10;
       position: relative;
     }
 
-    /* 底圖層 (這是橡皮擦擦不掉的秘密) */
     #background-layer {
-      position: absolute;
-      top: 0; left: 0;
+      position: absolute; top: 0; left: 0;
       width: 100%; height: 100%;
       z-index: 0; 
       background-color: #faf9f6; 
@@ -82,8 +76,7 @@
     .quick-toolbar {
       width: 100%;
       background: var(--toolbar-bg);
-      padding: 8px;
-      box-sizing: border-box;
+      padding: 8px; box-sizing: border-box;
       border-radius: 0 0 12px 12px;
       display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px;
       box-shadow: 0 4px 6px rgba(0,0,0,0.05);
@@ -101,7 +94,6 @@
     .btn-icon:disabled { opacity: 0.3; cursor: default; }
     .btn-trash { color: #e53935; border-color: #ffcdd2; }
     
-    /* 右側：工具面板 */
     .tools-section {
       flex: 1; min-width: 300px; max-width: 450px;
       display: flex; flex-direction: column; gap: 15px;
@@ -169,7 +161,6 @@
     }
     select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; background: white; font-size: 14px; min-width: 100px; }
 
-    /* 渲染提示 */
     #render-hint {
       display:none; color: #d65a75; font-size: 12px; margin-top: 5px; font-weight: bold;
       animation: blink 2s infinite;
@@ -233,10 +224,11 @@
         <div class="full-width">
           <button onclick="setMode('select')" id="btn-select" class="normal-btn active">✋ 調整</button>
           <button onclick="setMode('draw')" id="btn-draw" class="normal-btn">🖌️ 塗鴉</button>
+          <button onclick="setMode('eraser')" id="btn-eraser" class="normal-btn">🧼 橡皮擦</button>
         </div>
         
         <div id="brush-controls" style="margin-top: 15px; display: none; background: #f9f9f9; padding: 10px; border-radius: 8px;">
-          <div class="tool-row">
+          <div id="brush-type-row" class="tool-row">
             <div class="color-picker-wrapper" title="筆刷顏色">
               <input type="color" id="brush-color" value="#000000" onchange="updateBrush()">
             </div>
@@ -246,14 +238,14 @@
               <option value="pencil">✏️ 鉛筆 (Pencil)</option>
               <option value="marker">🖊️ 螢光筆 (Marker)</option>
               <option value="spray">💨 噴槍 (Spray)</option>
-              <option value="eraser">⬜ 橡皮擦 (Eraser)</option>
             </select>
           </div>
           <div class="tool-row">
             <span style="font-size:12px;">粗細</span>
-            <input type="range" id="brush-width" min="1" max="50" value="20" onchange="updateBrush()" style="flex:1;">
+            <input type="range" id="brush-width" min="1" max="100" value="20" onchange="updateBrush()" style="flex:1;">
           </div>
           <div id="render-hint">🖌️ 毛筆/蠟筆運算較複雜，請放手後稍等渲染</div>
+          <div id="eraser-hint" style="display:none; color:#888; font-size:12px;">🧼 橡皮擦可以擦掉塗鴉，透出底圖。</div>
         </div>
       </div>
 
@@ -332,17 +324,16 @@
     const canvasWidth = Math.min(maxCanvasWidth, screenWidth - 25);
     const canvasHeight = canvasWidth * 1.48; 
 
-    // V20: 畫布透明，且移除縮放邏輯
+    // 初始化畫布
     const canvas = new fabric.Canvas('c', {
       width: canvasWidth,
       height: canvasHeight,
-      backgroundColor: null, // 透明
+      backgroundColor: null, 
       isDrawingMode: false,
       preserveObjectStacking: true,
       selection: true 
     });
 
-    // 變數初始化
     let currentBgUrl = '';
     let isVertical = false;
     let history = [];
@@ -350,7 +341,6 @@
     let isHistoryProcessing = false;
     let currentCategory = 'stickers';
 
-    // --- 歷史紀錄 ---
     function saveState() {
       if (isHistoryProcessing) return;
       const currentState = JSON.stringify(canvas.toDatalessJSON());
@@ -445,21 +435,58 @@
       }
     }
 
+    // V21 核心：模式切換 (獨立橡皮擦)
     function setMode(mode) {
+      // 更新按鈕狀態
       document.getElementById('btn-select').className = (mode === 'select' ? 'normal-btn active' : 'normal-btn');
       document.getElementById('btn-draw').className = (mode === 'draw' ? 'normal-btn active' : 'normal-btn');
-      document.getElementById('brush-controls').style.display = (mode === 'draw') ? 'block' : 'none';
+      document.getElementById('btn-eraser').className = (mode === 'eraser' ? 'normal-btn active' : 'normal-btn');
+
+      const controls = document.getElementById('brush-controls');
+      const typeRow = document.getElementById('brush-type-row');
+      const hint = document.getElementById('render-hint');
+      const eraserHint = document.getElementById('eraser-hint');
 
       if (mode === 'select') {
         canvas.isDrawingMode = false;
-      } else {
+        controls.style.display = 'none';
+      } 
+      else if (mode === 'draw') {
         canvas.isDrawingMode = true;
+        controls.style.display = 'block';
+        typeRow.style.display = 'flex'; // 顯示筆刷選擇
+        eraserHint.style.display = 'none';
+        
+        // 切換回畫筆時，強制還原模式
+        if (canvas.freeDrawingBrush) {
+            canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
+        }
         updateBrush(); 
+      } 
+      else if (mode === 'eraser') {
+        canvas.isDrawingMode = true;
+        controls.style.display = 'block';
+        typeRow.style.display = 'none'; // 隱藏筆刷選擇(因為現在是橡皮擦)
+        hint.style.display = 'none';
+        eraserHint.style.display = 'block';
+
+        // 設定橡皮擦
+        const width = parseInt(document.getElementById('brush-width').value, 10);
+        const brush = new fabric.PencilBrush(canvas);
+        brush.width = width; 
+        brush.color = "rgba(0,0,0,1)"; // 顏色不重要，但要設
+        brush.shadow = null;
+        canvas.freeDrawingBrush = brush;
+        // 關鍵：設定為去背模式
+        canvas.freeDrawingBrush.globalCompositeOperation = 'destination-out';
       }
     }
 
     function updateBrush() {
-      // 確保即使不在畫畫模式，也要設定好筆刷
+      // 如果現在是橡皮擦模式，不執行這個更新
+      if (document.getElementById('btn-eraser').classList.contains('active')) return;
+
+      if (!canvas.isDrawingMode) return;
       const type = document.getElementById('brush-type').value;
       const color = document.getElementById('brush-color').value;
       const width = parseInt(document.getElementById('brush-width').value, 10);
@@ -468,22 +495,20 @@
       let brush;
       let showHint = false;
       
-      // ⚠️ 關鍵修復：重置合成模式，避免切換回來還是橡皮擦模式
+      // 確保模式正確
       if (canvas.freeDrawingBrush) {
         canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
       }
 
       if (type === 'calligraphy') {
-        // 毛筆 V6
         brush = new fabric.SprayBrush(canvas);
         brush.width = width * 1.5;
         brush.density = 80;  
         brush.dotWidth = 1.5;
         brush.dotWidthVariance = 2.5; 
         brush.randomOpacity = true; 
-        
         const c = new fabric.Color(color);
-        c.setAlpha(0.5); // 稍微調深一點點，比 V19 深
+        c.setAlpha(0.4); 
         brush.color = c.toRgba();
         showHint = true;
 
@@ -511,18 +536,6 @@
         brush.width = width * 3;
         brush.shadow = null;
 
-      } else if (type === 'eraser') {
-        // 橡皮擦：正確設定 destination-out
-        brush = new fabric.PencilBrush(canvas);
-        brush.width = width * 5; 
-        brush.color = "rgba(0,0,0,1)"; 
-        brush.shadow = null;
-        
-        canvas.freeDrawingBrush = brush;
-        canvas.freeDrawingBrush.globalCompositeOperation = 'destination-out';
-        hint.style.display = 'none';
-        return; 
-
       } else {
         brush = new fabric.PencilBrush(canvas);
         brush.width = width;
@@ -531,7 +544,7 @@
       }
 
       canvas.freeDrawingBrush = brush;
-      canvas.freeDrawingBrush.globalCompositeOperation = 'source-over'; // 確保不是去背模式
+      canvas.freeDrawingBrush.globalCompositeOperation = 'source-over'; // 雙重保險
       hint.style.display = showHint ? 'block' : 'none';
     }
 
@@ -610,7 +623,6 @@
       if (dir === 'back') active.sendToBack();
       if (dir === 'up') active.bringForward();
       if (dir === 'down') active.sendBackwards();
-      // V17 保留：不取消選取，方便連續移動
       canvas.requestRenderAll(); 
       saveState();
     }
@@ -639,7 +651,6 @@
     }
 
     function downloadImage() {
-      // V20 下載邏輯：不縮放，直接合併背景與塗鴉
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvas.width;
       tempCanvas.height = canvas.height;
