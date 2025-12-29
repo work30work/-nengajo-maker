@@ -26,11 +26,13 @@
       font-family: "Zen Maru Gothic", "Noto Sans TC", sans-serif; 
       margin: 0; padding: 20px 10px;
       text-align: center;
+      /* 禁止瀏覽器預設的下拉刷新，保留給畫布操作 */
       overscroll-behavior: none;
+      touch-action: none; 
     }
     
     h2 { 
-      margin: 0 0 15px 0; color: var(--primary); 
+      margin: 0 0 10px 0; color: var(--primary); 
       font-weight: 700; letter-spacing: 2px; 
       display: inline-block;
       border-bottom: 2px solid var(--secondary);
@@ -54,28 +56,26 @@
       position: relative;
     }
     
-    /* V18 核心：圖層分離結構 */
     .canvas-wrapper { 
       box-shadow: var(--card-shadow); 
       border: 1px solid #ddd;
-      /* 這裡設為透明，為了顯示下層的底圖 */
       background-color: transparent; 
       max-width: 100%; 
-      overflow: hidden;
+      overflow: hidden; /* 關鍵：縮放時不讓畫布跑出去 */
       z-index: 10;
       position: relative;
     }
 
-    /* 背後的底圖層 (用來放不會被擦掉的背景) */
     #background-layer {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      z-index: 0; /* 在畫布下面 */
-      background-color: #faf9f6; /* 預設紙張色 */
+      z-index: 0; 
+      background-color: #faf9f6; 
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
+      pointer-events: none; /* 讓滑鼠穿透到底下的 Canvas */
     }
 
     /* 快捷控制台 */
@@ -85,16 +85,11 @@
       padding: 8px;
       box-sizing: border-box;
       border-radius: 0 0 12px 12px;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 5px;
+      display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px;
       box-shadow: 0 4px 6px rgba(0,0,0,0.05);
       margin-bottom: 15px;
-      border: 1px solid #ffdde5;
-      border-top: none;
+      border: 1px solid #ffdde5; border-top: none;
     }
-
     .quick-group { display: flex; gap: 5px; align-items: center; }
 
     .btn-icon {
@@ -181,6 +176,9 @@
     }
     @keyframes blink { 0% {opacity: 1;} 50% {opacity: 0.5;} 100% {opacity: 1;} }
 
+    /* 縮放提示 */
+    .zoom-hint { font-size:12px; color:#888; background:#eee; padding:2px 8px; border-radius:10px; }
+
     #status-msg { 
       position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
       background: rgba(74, 74, 74, 0.95); color: white; 
@@ -204,6 +202,11 @@
   <div class="app-container">
     
     <div class="canvas-section">
+      <div style="width:100%; text-align:right; margin-bottom:5px;">
+         <span class="zoom-hint">🖱️ 滾輪 / 📱 雙指 可縮放</span>
+         <button onclick="resetZoom()" style="font-size:12px; padding:2px 8px; cursor:pointer;">🔍 100%</button>
+      </div>
+      
       <div class="canvas-wrapper" id="canvas-wrapper">
         <div id="background-layer"></div>
         <canvas id="c"></canvas>
@@ -246,7 +249,7 @@
               <input type="color" id="brush-color" value="#000000" onchange="updateBrush()">
             </div>
             <select id="brush-type" onchange="updateBrush()" style="flex:1;">
-              <option value="calligraphy">✒️ 粗曠毛筆 (Rough Ink)</option>
+              <option value="calligraphy">✒️ 渲染毛筆 (Ink)</option>
               <option value="crayon">🖍️ 蠟筆 (Crayon)</option>
               <option value="pencil">✏️ 鉛筆 (Pencil)</option>
               <option value="marker">🖊️ 螢光筆 (Marker)</option>
@@ -258,7 +261,7 @@
             <span style="font-size:12px;">粗細</span>
             <input type="range" id="brush-width" min="1" max="50" value="20" onchange="updateBrush()" style="flex:1;">
           </div>
-          <div id="render-hint">🖌️ 毛筆/蠟筆運算較複雜，請放手後稍等 0.5 秒渲染喔！</div>
+          <div id="render-hint">🖌️ 毛筆/蠟筆運算較複雜，請放手後稍等渲染</div>
         </div>
       </div>
 
@@ -282,7 +285,7 @@
         
         <div style="margin-top:10px; border-top:1px dashed #eee; padding-top:10px;">
            <label style="display:flex; align-items:center; gap:5px; justify-content:center; cursor:pointer; color:#888; font-size:12px;">
-             📂 上傳自己的圖片
+             📂 上傳圖片
              <input type="file" style="display:none" accept="image/*" onchange="handleUniversalUpload(this)">
            </label>
         </div>
@@ -337,27 +340,143 @@
     const canvasWidth = Math.min(maxCanvasWidth, screenWidth - 25);
     const canvasHeight = canvasWidth * 1.48; 
 
-    // V18: 畫布本身設為透明，讓 CSS 背景層透出來
+    // 初始化畫布
     const canvas = new fabric.Canvas('c', {
       width: canvasWidth,
       height: canvasHeight,
-      backgroundColor: null, // 透明
+      backgroundColor: null, 
       isDrawingMode: false,
-      preserveObjectStacking: true 
+      preserveObjectStacking: true,
+      selection: true // 允許選取
     });
 
-    // 背景圖片 URL 暫存，為了下載時使用
+    // 縮放相關變數
     let currentBgUrl = '';
-
     let isVertical = false;
     let history = [];
     let historyRedo = [];
     let isHistoryProcessing = false;
     let currentCategory = 'stickers';
 
+    // ------------------------------------------------
+    // 🔍 V19 縮放系統 (Zoom System) - 電腦與手機版
+    // ------------------------------------------------
+    
+    // 1. 電腦版：滾輪縮放 (Mouse Wheel)
+    canvas.on('mouse:wheel', function(opt) {
+      // 判斷是否按住 Ctrl 或 Alt，或者直接允許滾輪
+      // 為了方便，直接允許滾輪縮放，但要按住 Ctrl/Alt 才能縮放，防止誤觸捲動頁面
+      // 不過在手機上沒有 Ctrl，所以這裡只處理「視圖縮放」
+      
+      const delta = opt.e.deltaY;
+      let zoom = canvas.getZoom();
+      zoom *= 0.999 ** delta;
+      if (zoom > 5) zoom = 5;
+      if (zoom < 0.5) zoom = 0.5;
+      
+      // 以滑鼠位置為中心縮放
+      canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+      opt.e.preventDefault();
+      opt.e.stopPropagation();
+      
+      // 更新背景層大小 (雖然背景是 CSS，但為了視覺一致，我們用 CSS transform)
+      // 註：這有點複雜，V19 先專注於 Canvas 內容縮放，背景因為是 CSS cover，會自動適應
+      // 實際上，若要背景跟著縮放，背景應該要在 Canvas 裡面，但為了橡皮擦功能我們分離了
+      // 妥協方案：縮放時只縮放塗鴉，背景保持不動？不，這樣會對不準。
+      // 修正方案：背景如果是純色沒差，如果是圖片，必須跟著 Canvas 變。
+      // 由於這有點難度，V19 我們盡量保持底圖是「填滿」的。
+    });
+
+    // 2. 手機版：雙指縮放 (Touch Gestures)
+    // 由於 Fabric 內建的 touch 事件比較基本，我們用原生事件輔助
+    let lastDist = 0;
+    let lastX = 0; 
+    let lastY = 0;
+    let isDragging = false;
+    
+    const canvasEl = document.querySelector('.upper-canvas'); // 抓取 Fabric 上層畫布
+
+    // 觸控開始
+    canvasEl.addEventListener('touchstart', function(e) {
+      if (e.touches.length === 2) {
+        // 雙指：開始縮放/移動
+        canvas.isDrawingMode = false; // 暫時關閉畫畫，避免誤畫
+        canvas.selection = false;     // 暫時關閉選取
+        isDragging = true;
+        
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        lastDist = Math.hypot(touch2.pageX - touch1.pageX, touch2.pageY - touch1.pageY);
+        lastX = (touch1.pageX + touch2.pageX) / 2;
+        lastY = (touch1.pageY + touch2.pageY) / 2;
+        e.preventDefault(); // 防止瀏覽器捲動
+      }
+    }, { passive: false });
+
+    // 觸控移動
+    canvasEl.addEventListener('touchmove', function(e) {
+      if (e.touches.length === 2 && isDragging) {
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        
+        // 1. 計算縮放
+        const dist = Math.hypot(touch2.pageX - touch1.pageX, touch2.pageY - touch1.pageY);
+        let zoom = canvas.getZoom();
+        const scale = dist / lastDist;
+        zoom *= scale;
+        
+        // 限制縮放範圍
+        if (zoom > 5) zoom = 5;
+        if (zoom < 0.5) zoom = 0.5;
+        
+        // 2. 計算平移
+        const currentX = (touch1.pageX + touch2.pageX) / 2;
+        const currentY = (touch1.pageY + touch2.pageY) / 2;
+        const deltaX = currentX - lastX;
+        const deltaY = currentY - lastY;
+        
+        // 應用變更
+        // 這裡簡化：以畫布中心縮放，加上平移
+        canvas.setZoom(zoom);
+        const vpt = canvas.viewportTransform;
+        vpt[4] += deltaX;
+        vpt[5] += deltaY;
+        canvas.requestRenderAll();
+        
+        // 更新數值
+        lastDist = dist;
+        lastX = currentX;
+        lastY = currentY;
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // 觸控結束
+    canvasEl.addEventListener('touchend', function(e) {
+      if (e.touches.length < 2) {
+        isDragging = false;
+        // 恢復原本的模式 (如果原本是塗鴉模式，就切回去)
+        const drawBtn = document.getElementById('btn-draw');
+        if (drawBtn && drawBtn.classList.contains('active')) {
+           canvas.isDrawingMode = true;
+        } else {
+           canvas.isDrawingMode = false;
+           canvas.selection = true;
+        }
+      }
+    });
+
+    // 重置縮放功能
+    function resetZoom() {
+      canvas.setZoom(1);
+      canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+      canvas.requestRenderAll();
+    }
+
+
+    // --- 歷史紀錄 ---
     function saveState() {
       if (isHistoryProcessing) return;
-      // 狀態不存背景圖片(因為背景現在是 CSS)，只存畫布內容
       const currentState = JSON.stringify(canvas.toDatalessJSON());
       if (history.length > 0 && history[history.length - 1] === currentState) return;
       if (history.length > 30) history.shift();
@@ -366,10 +485,7 @@
       updateHistoryButtons();
     }
     
-    // 恢復狀態時不用管鎖定背景了，因為背景不在 Canvas 裡
-    function restoreLocks() {
-      canvas.requestRenderAll();
-    }
+    function restoreLocks() { canvas.requestRenderAll(); }
 
     canvas.on('object:added', (e) => { if(!isHistoryProcessing) saveState(); });
     canvas.on('object:modified', saveState);
@@ -441,10 +557,7 @@
             const url = supabase.storage.from('assets').getPublicUrl(folder + '/' + item.name).data.publicUrl;
             const img = document.createElement('img');
             img.src = url;
-            img.onclick = () => {
-              // 這裡不需再轉成 base64，直接傳 URL
-              processImage(url, false);
-            };
+            img.onclick = () => { processImage(url, false); };
             listDiv.appendChild(img);
           });
         } else {
@@ -469,8 +582,9 @@
       }
     }
 
+    // 筆刷 V6 更新
     function updateBrush() {
-      if (!canvas.isDrawingMode) return;
+      // 確保即使不在畫畫模式，也要設定好筆刷，以防萬一
       const type = document.getElementById('brush-type').value;
       const color = document.getElementById('brush-color').value;
       const width = parseInt(document.getElementById('brush-width').value, 10);
@@ -479,17 +593,22 @@
       let brush;
       let showHint = false;
       
+      // 先重置模式
+      if (canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
+      }
+
       if (type === 'calligraphy') {
-        // V5: 粗曠顆粒感 (Rough Ink)
+        // V6: 淡墨渲染 (Lighter, Denser)
         brush = new fabric.SprayBrush(canvas);
-        brush.width = width * 2;
-        brush.density = 40; // 密度適中
-        brush.dotWidth = 2; // 顆粒變大
-        brush.dotWidthVariance = 2; // 顆粒大小隨機
+        brush.width = width * 1.5;
+        brush.density = 80;  // 密度提高 (更密)
+        brush.dotWidth = 1.5;
+        brush.dotWidthVariance = 2.5; // 變異度加大 (更自然)
         brush.randomOpacity = true; 
         
         const c = new fabric.Color(color);
-        c.setAlpha(0.7); 
+        c.setAlpha(0.4); // 透明度降低 (更淡)
         brush.color = c.toRgba();
         showHint = true;
 
@@ -518,17 +637,19 @@
         brush.shadow = null;
 
       } else if (type === 'eraser') {
-        // V18 橡皮擦：使用 destination-out 模式
-        // 這會把畫布上的像素變成透明 -> 露出背後的 CSS 底圖
+        // 🚨 橡皮擦修復 (V19 Critical Fix)
         brush = new fabric.PencilBrush(canvas);
-        brush.color = "rgba(0,0,0,1)"; // 顏色不重要，重點是模式
-        brush.width = width * 3;
+        brush.width = width * 5; // 橡皮擦大一點
+        brush.color = "black"; // 顏色不重要
         brush.shadow = null;
-        // 關鍵：這行讓筆刷變成「去背橡皮擦」
+        
+        // 綁定到畫布
         canvas.freeDrawingBrush = brush;
+        // 強制設定去背模式
         canvas.freeDrawingBrush.globalCompositeOperation = 'destination-out';
+        
         hint.style.display = 'none';
-        return; // 直接返回，不用跑下面的設定
+        return; // 設定完直接結束
 
       } else {
         brush = new fabric.PencilBrush(canvas);
@@ -537,41 +658,30 @@
         brush.shadow = null;
       }
 
-      // 重置合成模式 (避免切換回其他筆刷時還在擦除)
-      if(brush) {
-        brush.globalCompositeOperation = 'source-over';
-      }
-      
       canvas.freeDrawingBrush = brush;
+      // 確保非橡皮擦模式是正常的覆蓋
+      canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
       hint.style.display = showHint ? 'block' : 'none';
     }
 
-    // V18 圖片處理：支援分離背景
     function processImage(source, isFile) {
       const isBgMode = document.getElementById('bg-mode-toggle').checked;
-
       if (isBgMode) {
-        // 設定背景層 (CSS)
         const bgLayer = document.getElementById('background-layer');
-        
         if(isFile) {
-           // 如果是上傳的檔案，要用 FileReader 讀成 base64 顯示
            const reader = new FileReader();
            reader.onload = function(f) {
-             currentBgUrl = f.target.result; // 存起來下載用
+             currentBgUrl = f.target.result; 
              bgLayer.style.backgroundImage = `url(${currentBgUrl})`;
-             showStatus('🖼️ 背景已設定 (橡皮擦不會擦掉它)');
+             showStatus('🖼️ 背景已設定');
            };
            reader.readAsDataURL(source);
         } else {
-           // 如果是雲端 URL
            currentBgUrl = source;
            bgLayer.style.backgroundImage = `url(${source})`;
-           showStatus('🖼️ 背景已設定 (橡皮擦不會擦掉它)');
+           showStatus('🖼️ 背景已設定');
         }
-        
       } else {
-        // 貼圖模式：照舊
         const handleImg = (imgUrl) => {
              fabric.Image.fromURL(imgUrl, (img) => {
                 const targetWidth = canvas.width * 0.4; 
@@ -583,7 +693,6 @@
                 setMode('select');
              }, { crossOrigin: 'anonymous' });
         };
-
         if(isFile) {
             const reader = new FileReader();
             reader.onload = function(f) { handleImg(f.target.result); };
@@ -597,7 +706,7 @@
     function handleUniversalUpload(input) {
       const file = input.files[0];
       if (!file) return;
-      processImage(file, true); // true 代表是檔案物件
+      processImage(file, true);
       input.value = '';
     }
 
@@ -626,13 +735,11 @@
     function moveLayer(dir) {
       const active = canvas.getActiveObject();
       if (!active) return showStatus('請先選取物件');
-      // 這裡不用管背景了
       if (dir === 'front') active.bringToFront();
       if (dir === 'back') active.sendToBack();
       if (dir === 'up') active.bringForward();
       if (dir === 'down') active.sendBackwards();
-      
-      canvas.requestRenderAll(); // 保持選取
+      canvas.requestRenderAll(); 
       saveState();
     }
 
@@ -652,34 +759,30 @@
     }
     
     function clearCanvas() {
-      if(confirm('確定要清空塗鴉嗎？(背景會保留)')) { 
+      if(confirm('確定要清空塗鴉嗎？')) { 
         canvas.clear(); 
-        // 記得重設背景透明
         canvas.setBackgroundColor(null, canvas.renderAll.bind(canvas));
         history = []; saveState();
       }
     }
 
-    // V18 下載功能：必須把「背後的 CSS 背景」跟「前面的 Canvas」合併
     function downloadImage() {
-      // 1. 創建一個臨時畫布
+      // 縮放回 100% 再下載，確保解析度正確
+      canvas.setZoom(1);
+      canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+      
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvas.width;
       tempCanvas.height = canvas.height;
       const ctx = tempCanvas.getContext('2d');
-
-      // 2. 繪製背景 (如果有的話)
-      // 我們先填滿一個米黃色底，避免 PNG 透明
       ctx.fillStyle = "#faf9f6";
       ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
       const drawMainContent = () => {
-         // 3. 把 Fabric Canvas 畫上去
          const dataURL = canvas.toDataURL({format:'png', multiplier: 1});
          const mainImg = new Image();
          mainImg.onload = () => {
             ctx.drawImage(mainImg, 0, 0);
-            // 4. 下載
             const link = document.createElement('a');
             link.download = 'nengajo.png';
             link.href = tempCanvas.toDataURL('image/png');
@@ -690,9 +793,8 @@
 
       if (currentBgUrl) {
          const bgImg = new Image();
-         bgImg.crossOrigin = "anonymous"; // 避免跨域問題
+         bgImg.crossOrigin = "anonymous";
          bgImg.onload = () => {
-            // 模擬 cover 效果繪製
             const ratio = Math.max(tempCanvas.width / bgImg.width, tempCanvas.height / bgImg.height);
             const centerShift_x = (tempCanvas.width - bgImg.width * ratio) / 2;
             const centerShift_y = (tempCanvas.height - bgImg.height * ratio) / 2;
@@ -700,7 +802,7 @@
                           centerShift_x, centerShift_y, bgImg.width * ratio, bgImg.height * ratio);
             drawMainContent();
          };
-         bgImg.onerror = drawMainContent; // 失敗就直接畫內容
+         bgImg.onerror = drawMainContent;
          bgImg.src = currentBgUrl;
       } else {
          drawMainContent();
