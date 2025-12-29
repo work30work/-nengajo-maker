@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>🌸 作用年賀状製作所 🌸</title>
   
-  <link href="https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&family=Zen+Maru+Gothic:wght@500;700&family=Ma+Shan+Zheng&family=Yuji+Syuku&family=Noto+Serif+TC:wght@500&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&family=Kaisei+Decol:wght@400;700&family=Ma+Shan+Zheng&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&family=Potta+One&family=Reggae+One&family=RocknRoll+One&family=Yuji+Syuku&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -17,6 +17,7 @@
       --bg-color: #fdfcf8;
       --text-color: #4a4a4a;
       --card-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      --toolbar-bg: #fff0f3;
     }
 
     body { 
@@ -25,18 +26,21 @@
       font-family: "Zen Maru Gothic", "Noto Sans TC", sans-serif; 
       margin: 0; padding: 20px 10px;
       text-align: center;
+      /* 防止手機向下拉重新整理，影響畫畫體驗 */
+      overscroll-behavior: none;
     }
     
     h2 { 
-      margin: 0 0 20px 0; color: var(--primary); 
+      margin: 0 0 15px 0; color: var(--primary); 
       font-weight: 700; letter-spacing: 2px; 
       display: inline-block;
       border-bottom: 2px solid var(--secondary);
-      padding-bottom: 10px;
+      padding-bottom: 5px;
+      font-size: 1.2rem;
     }
 
     .app-container {
-      display: flex; gap: 30px;
+      display: flex; gap: 20px;
       max-width: 1200px; width: 100%;
       margin: 0 auto;
       align-items: flex-start; justify-content: center;
@@ -46,67 +50,98 @@
     /* 左側：畫布區 */
     .canvas-section {
       flex: 0 0 auto;
-      display: flex; flex-direction: column; gap: 15px; align-items: center;
+      display: flex; flex-direction: column; gap: 0; align-items: center;
       width: 100%; max-width: 520px;
+      position: relative;
     }
     
     .canvas-wrapper { 
       box-shadow: var(--card-shadow); 
       border: 1px solid #ddd;
-      background-color: #fff;
+      background-color: #faf9f6; /* 米黃紙色 */
       max-width: 100%; 
       overflow: hidden;
+      z-index: 10;
     }
 
+    /* --- V16 重點：快捷控制台 (Quick Toolbar) --- */
+    .quick-toolbar {
+      width: 100%;
+      background: var(--toolbar-bg);
+      padding: 8px;
+      box-sizing: border-box;
+      border-radius: 0 0 12px 12px; /* 下方圓角 */
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 5px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      margin-bottom: 15px;
+      border: 1px solid #ffdde5;
+      border-top: none;
+    }
+
+    .quick-group {
+      display: flex; gap: 5px; align-items: center;
+    }
+
+    /* 快捷按鈕樣式 */
+    .btn-icon {
+      padding: 8px 10px;
+      font-size: 16px;
+      background: white; border: 1px solid #ecc;
+      border-radius: 6px; cursor: pointer;
+      color: #666;
+    }
+    .btn-icon:hover { background: #fff5f7; color: var(--primary); }
+    .btn-icon:disabled { opacity: 0.3; cursor: default; }
+
+    /* 刪除按鈕 */
+    .btn-trash { color: #e53935; border-color: #ffcdd2; }
+    
     /* 右側：工具面板 */
     .tools-section {
       flex: 1; min-width: 300px; max-width: 450px;
-      display: flex; flex-direction: column; gap: 20px;
+      display: flex; flex-direction: column; gap: 15px;
       text-align: left;
     }
 
     .tool-card {
-      background: white; padding: 20px; border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      background: white; padding: 15px; border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       transition: transform 0.2s;
     }
     
     .card-title {
-      font-size: 15px; font-weight: 700; color: #888; margin: 0 0 12px 0;
-      border-bottom: 1px solid #f0f0f0; padding-bottom: 8px;
+      font-size: 14px; font-weight: 700; color: #888; margin: 0 0 10px 0;
+      border-bottom: 1px solid #f0f0f0; padding-bottom: 5px;
       display: flex; justify-content: space-between; align-items: center;
     }
 
-    button { 
+    /* 一般按鈕 */
+    button.normal-btn { 
       padding: 10px 12px; cursor: pointer;
       border: 1px solid #eee; background: white; 
       border-radius: 8px; font-size: 14px; color: #555;
       transition: 0.2s; font-family: inherit; font-weight: 500;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
       white-space: nowrap; 
     }
-    button:active { transform: translateY(0); box-shadow: none; }
-    
-    button.active { 
+    button.normal-btn.active { 
       background: var(--primary); color: white; border-color: var(--primary); 
     }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* 紅色刪除按鈕特別樣式 */
-    .btn-delete { color: #d32f2f; border-color: #ffcdd2; background: #ffebee; }
-    .btn-delete:hover { background: #ffcdd2; }
-
-    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-    
     .tool-row {
-      display: flex; gap: 10px; margin-bottom: 10px; 
+      display: flex; gap: 8px; margin-bottom: 8px; 
       flex-wrap: wrap; align-items: center;
     }
+    .full-width { width: 100%; display: flex; gap:5px; }
+    .full-width button { flex: 1; }
 
+    /* 雲端素材區 */
     .category-tabs { display: flex; gap: 5px; margin-bottom: 10px; background: #f5f5f5; padding: 4px; border-radius: 8px; }
     .tab-btn {
       flex: 1; border: none; background: transparent; padding: 8px; font-size: 13px;
-      border-radius: 6px; box-shadow: none; color: #666;
+      border-radius: 6px; box-shadow: none; color: #666; cursor: pointer;
     }
     .tab-btn.active-tab {
       background: white; color: var(--primary); font-weight: bold;
@@ -135,11 +170,7 @@
       position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
       padding: 0; border: none; cursor: pointer;
     }
-    
-    select {
-      padding: 8px; border: 1px solid #ccc; border-radius: 6px; background: white;
-      font-size: 14px; min-width: 120px;
-    }
+    select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; background: white; font-size: 14px; min-width: 100px; }
 
     #status-msg { 
       position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
@@ -150,11 +181,11 @@
     }
 
     @media (max-width: 600px) {
-      h2 { font-size: 18px; }
-      .app-container { gap: 20px; }
+      .app-container { gap: 15px; }
       .tools-section { width: 100%; min-width: auto; }
-      .btn-group button { padding: 10px; }
-      #text-input { min-width: 150px; } 
+      /* 手機上快捷列按鈕稍微縮小一點 */
+      .btn-icon { padding: 8px 12px; font-size: 14px; }
+      .quick-toolbar { justify-content: center; gap: 10px; }
     }
   </style>
 </head>
@@ -168,24 +199,64 @@
       <div class="canvas-wrapper">
         <canvas id="c"></canvas>
       </div>
-      
-      <div class="btn-group" style="margin-top: 10px; width: 100%;">
-        <button onclick="deleteObject()" class="btn-delete" style="flex:1;">🗑️ 刪除選取</button>
-        <button onclick="undo()" id="btn-undo">↩️ 復原</button>
-        <button onclick="redo()" id="btn-redo">↪️ 重做</button>
+
+      <div class="quick-toolbar">
+        <div class="quick-group">
+          <button onclick="undo()" id="btn-undo" class="btn-icon" title="復原">↩️</button>
+          <button onclick="redo()" id="btn-redo" class="btn-icon" title="重做">↪️</button>
+        </div>
+        
+        <div class="quick-group">
+          <button onclick="deleteObject()" class="btn-icon btn-trash" title="刪除選取">🗑️</button>
+        </div>
+
+        <div class="quick-group">
+          <button onclick="moveLayer('front')" class="btn-icon" title="置頂">🔝</button>
+          <button onclick="moveLayer('up')" class="btn-icon" title="上移">⬆️</button>
+          <button onclick="moveLayer('down')" class="btn-icon" title="下移">⬇️</button>
+          <button onclick="moveLayer('back')" class="btn-icon" title="置底">BOTTOM</button>
+        </div>
       </div>
       
-      <div class="btn-group" style="margin-top: 5px; width: 100%;">
-        <button onclick="clearCanvas()" style="flex:1; font-size:12px;">📄 清空重來</button>
-        <button onclick="downloadImage()" style="flex:2; background: #4CAF50; color: white; border: none;">💾 保存卡片</button>
+      <div class="full-width" style="margin-top:5px;">
+        <button onclick="clearCanvas()" class="normal-btn" style="flex:1; font-size:12px; border:none; background:none; text-decoration:underline;">全部重來</button>
+        <button onclick="downloadImage()" class="normal-btn" style="flex:2; background: #4CAF50; color: white; border: none; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);">💾 保存卡片</button>
       </div>
     </div>
 
     <div class="tools-section">
 
       <div class="tool-card">
+        <div class="card-title">操作模式</div>
+        <div class="full-width">
+          <button onclick="setMode('select')" id="btn-select" class="normal-btn active">✋ 調整</button>
+          <button onclick="setMode('draw')" id="btn-draw" class="normal-btn">🖌️ 塗鴉</button>
+        </div>
+        
+        <div id="brush-controls" style="margin-top: 15px; display: none; background: #f9f9f9; padding: 10px; border-radius: 8px;">
+          <div class="tool-row">
+            <div class="color-picker-wrapper" title="筆刷顏色">
+              <input type="color" id="brush-color" value="#000000" onchange="updateBrush()">
+            </div>
+            <select id="brush-type" onchange="updateBrush()" style="flex:1;">
+              <option value="calligraphy">✒️ 毛筆 (Ink)</option>
+              <option value="crayon">🖍️ 蠟筆 (Crayon) ✨新!</option>
+              <option value="pencil">✏️ 鉛筆 (Pencil)</option>
+              <option value="marker">🖊️ 螢光筆 (Marker)</option>
+              <option value="spray">💨 噴槍 (Spray)</option>
+              <option value="eraser">⬜ 橡皮擦 (Eraser)</option>
+            </select>
+          </div>
+          <div class="tool-row">
+            <span style="font-size:12px;">粗細</span>
+            <input type="range" id="brush-width" min="1" max="50" value="12" onchange="updateBrush()" style="flex:1;">
+          </div>
+        </div>
+      </div>
+
+      <div class="tool-card">
         <div class="card-title">
-          <span>📦 雲端素材庫</span>
+          <span>📦 雲端素材</span>
           <label class="switch-label">
             <input type="checkbox" id="bg-mode-toggle"> 
             <span style="color:var(--primary); font-weight:bold;">設為背景</span>
@@ -194,7 +265,7 @@
 
         <div class="category-tabs">
           <button class="tab-btn active-tab" onclick="switchCategory('stickers', this)">🐶 貼圖</button>
-          <button class="tab-btn" onclick="switchCategory('backgrounds', this)">🖼️ 背景/底圖</button>
+          <button class="tab-btn" onclick="switchCategory('backgrounds', this)">🖼️ 背景</button>
         </div>
 
         <div id="sticker-list" class="sticker-grid">
@@ -210,33 +281,6 @@
       </div>
 
       <div class="tool-card">
-        <div class="card-title">操作模式</div>
-        <div class="btn-group" style="width:100%">
-          <button onclick="setMode('select')" id="btn-select" class="active" style="flex:1">✋ 調整模式</button>
-          <button onclick="setMode('draw')" id="btn-draw" style="flex:1">🖌️ 塗鴉模式</button>
-        </div>
-        
-        <div id="brush-controls" style="margin-top: 15px; display: none; background: #f9f9f9; padding: 10px; border-radius: 8px;">
-          <div class="tool-row">
-            <div class="color-picker-wrapper" title="筆刷顏色">
-              <input type="color" id="brush-color" value="#000000" onchange="updateBrush()">
-            </div>
-            <select id="brush-type" onchange="updateBrush()" style="flex:1;">
-              <option value="calligraphy">✒️ 墨水毛筆 (Ink)</option>
-              <option value="pencil">✏️ 鉛筆 (Pencil)</option>
-              <option value="marker">🖍️ 螢光筆 (Marker)</option>
-              <option value="spray">💨 噴槍 (Spray)</option>
-              <option value="eraser">⬜ 橡皮擦 (Eraser)</option>
-            </select>
-          </div>
-          <div class="tool-row">
-            <span style="font-size:12px;">粗細</span>
-            <input type="range" id="brush-width" min="1" max="50" value="12" onchange="updateBrush()" style="flex:1;">
-          </div>
-        </div>
-      </div>
-
-      <div class="tool-card">
         <div class="card-title">文字工具</div>
         
         <div class="tool-row">
@@ -248,27 +292,27 @@
 
         <div class="tool-row">
           <select id="font-select" style="flex:2;">
-            <option value="Ma Shan Zheng">書法手寫體 (中/日)</option>
-            <option value="Hachi Maru Pop">波波體 (日/部分中)</option>
-            <option value="Zen Maru Gothic">圓體 (中/日)</option>
-            <option value="Yuji Syuku">行書 (日/中)</option>
-            <option value="Noto Serif TC">標準明體</option>
-            <option value="Noto Sans TC">標準黑體</option>
+            <optgroup label="書法手寫類">
+              <option value="Ma Shan Zheng">書法手寫體</option>
+              <option value="Yuji Syuku">日式行書</option>
+              <option value="Potta One">胖胖毛筆體</option>
+            </optgroup>
+            <optgroup label="可愛圓體類">
+              <option value="Hachi Maru Pop">波波體</option>
+              <option value="Zen Maru Gothic">日系圓體</option>
+              <option value="RocknRoll One">搖滾圓體</option>
+            </optgroup>
+            <optgroup label="標準/襯線類">
+              <option value="Noto Sans TC">標準黑體</option>
+              <option value="Noto Serif TC">標準明體</option>
+              <option value="Kaisei Decol">優雅襯線體</option>
+              <option value="Reggae One">剛勁體</option>
+            </optgroup>
           </select>
-          <button onclick="toggleVertical()" id="btn-vertical" style="flex:1;">➡️ 橫書</button>
+          <button onclick="toggleVertical()" id="btn-vertical" style="flex:1;" class="normal-btn">➡️ 橫書</button>
         </div>
         
-        <button onclick="addText()" style="width:100%; background:#f0f0f0;">➕ 加入文字</button>
-      </div>
-
-      <div class="tool-card">
-        <div class="card-title">圖層順序</div>
-        <div class="btn-group" style="width:100%">
-          <button onclick="moveLayer('front')" style="flex:1">⬆️ 置頂</button>
-          <button onclick="moveLayer('up')" style="flex:1">↑ 上移</button>
-          <button onclick="moveLayer('down')" style="flex:1">↓ 下移</button>
-          <button onclick="moveLayer('back')" style="flex:1">⬇️ 置底</button>
-        </div>
+        <button onclick="addText()" class="normal-btn" style="width:100%; background:#f0f0f0;">➕ 加入文字</button>
       </div>
 
     </div>
@@ -276,22 +320,21 @@
 
   <div id="status-msg">操作成功</div>
 
- <script>
+  <script>
     // ⚠️⚠️⚠️ 請在這裡填入您的 Supabase 資料 ⚠️⚠️⚠️
     const SUPABASE_URL = 'https://kyjppevleohxkrxvghve.supabase.co'; 
     const SUPABASE_KEY = 'sb_publishable_ICm0LIiw6DHBz-s7SHUYuQ_kDqSlITB';
 
-
-    // --- 初始化 (黃金比例) ---
+    // --- 初始化 ---
     const screenWidth = window.innerWidth;
     const maxCanvasWidth = 500;
-    const canvasWidth = Math.min(maxCanvasWidth, screenWidth - 30);
-    const canvasHeight = canvasWidth * 1.48; // 賀年卡比例
+    const canvasWidth = Math.min(maxCanvasWidth, screenWidth - 25);
+    const canvasHeight = canvasWidth * 1.48; 
 
     const canvas = new fabric.Canvas('c', {
       width: canvasWidth,
       height: canvasHeight,
-      backgroundColor: '#ffffff',
+      backgroundColor: '#faf9f6',
       isDrawingMode: false,
       preserveObjectStacking: true 
     });
@@ -302,18 +345,11 @@
     let isHistoryProcessing = false;
     let currentCategory = 'stickers';
 
-    // --- 歷史紀錄 (優化版：防重複) ---
+    // --- 歷史紀錄 ---
     function saveState() {
       if (isHistoryProcessing) return;
-      
-      // 取得當前狀態字串
       const currentState = JSON.stringify(canvas.toDatalessJSON(['isBackground']));
-      
-      // 🛑 防重複檢查：如果跟上一次存的一樣，就不存
-      if (history.length > 0 && history[history.length - 1] === currentState) {
-        return;
-      }
-
+      if (history.length > 0 && history[history.length - 1] === currentState) return;
       if (history.length > 30) history.shift();
       history.push(currentState);
       historyRedo = [];
@@ -333,22 +369,16 @@
       canvas.requestRenderAll();
     }
 
-    // 事件監聽 (更嚴謹)
     canvas.on('object:added', (e) => { if(!isHistoryProcessing) saveState(); });
     canvas.on('object:modified', saveState);
     canvas.on('object:removed', saveState);
     canvas.on('path:created', saveState);
 
     function undo() {
-      if (history.length <= 1) return; // 至少要留一個狀態
-      
+      if (history.length <= 1) return;
       isHistoryProcessing = true;
-      // 把現在的狀態推到 redo
       historyRedo.push(history.pop());
-      
-      // 讀取上一個狀態
       const content = history[history.length - 1];
-      
       canvas.loadFromJSON(content, () => {
         restoreLocks();
         isHistoryProcessing = false;
@@ -360,10 +390,8 @@
     function redo() {
       if (historyRedo.length === 0) return;
       isHistoryProcessing = true;
-      
       const content = historyRedo.pop();
       history.push(content);
-      
       canvas.loadFromJSON(content, () => {
         restoreLocks();
         isHistoryProcessing = false;
@@ -373,26 +401,20 @@
     }
 
     function updateHistoryButtons() {
-      document.getElementById('btn-undo').disabled = (history.length <= 1);
-      document.getElementById('btn-redo').disabled = (historyRedo.length === 0);
+      const undoBtn = document.getElementById('btn-undo');
+      const redoBtn = document.getElementById('btn-redo');
+      if(undoBtn) undoBtn.disabled = (history.length <= 1);
+      if(redoBtn) redoBtn.disabled = (historyRedo.length === 0);
     }
-    
-    // 初始存檔
     saveState();
 
-
-    // --- 雲端素材分類 ---
+    // --- 雲端素材 ---
     async function switchCategory(category, btn) {
       currentCategory = category;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
       btn.classList.add('active-tab');
-
       const bgToggle = document.getElementById('bg-mode-toggle');
-      if (category === 'backgrounds') {
-        bgToggle.checked = true;
-      } else {
-        bgToggle.checked = false;
-      }
+      bgToggle.checked = (category === 'backgrounds');
       loadCloudImages(category);
     }
 
@@ -402,15 +424,11 @@
         listDiv.innerHTML = '<p style="color:#d65a75; font-size:12px;">⚠️ 請填 Key</p>';
         return;
       }
-      
       listDiv.innerHTML = '<p style="font-size:12px; color:#999; padding:5px;">讀取中...</p>';
-
       try {
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         const { data, error } = await supabase.storage.from('assets').list(folder);
-        
         if (error) throw error;
-        
         listDiv.innerHTML = '';
         if (data && data.length > 0) {
           const items = data.filter(i => i.name !== '.emptyFolderPlaceholder');
@@ -418,16 +436,12 @@
              listDiv.innerHTML = `<p style="font-size:12px; padding:10px;">資料夾 ${folder} 是空的</p>`;
              return;
           }
-
           items.forEach(item => {
             const url = supabase.storage.from('assets').getPublicUrl(folder + '/' + item.name).data.publicUrl;
-            
             const img = document.createElement('img');
             img.src = url;
             img.onclick = () => {
-              fabric.Image.fromURL(url, (oImg) => {
-                processImage(oImg);
-              }, { crossOrigin: 'anonymous' });
+              fabric.Image.fromURL(url, (oImg) => { processImage(oImg); }, { crossOrigin: 'anonymous' });
             };
             listDiv.appendChild(img);
           });
@@ -440,12 +454,10 @@
       }
     }
 
-
     // --- 核心功能 ---
-
     function setMode(mode) {
-      document.getElementById('btn-select').className = (mode === 'select' ? 'active' : '');
-      document.getElementById('btn-draw').className = (mode === 'draw' ? 'active' : '');
+      document.getElementById('btn-select').className = (mode === 'select' ? 'normal-btn active' : 'normal-btn');
+      document.getElementById('btn-draw').className = (mode === 'draw' ? 'normal-btn active' : 'normal-btn');
       document.getElementById('brush-controls').style.display = (mode === 'draw') ? 'block' : 'none';
 
       if (mode === 'select') {
@@ -456,7 +468,6 @@
       }
     }
 
-    // 筆刷優化：模擬毛筆
     function updateBrush() {
       if (!canvas.isDrawingMode) return;
       const type = document.getElementById('brush-type').value;
@@ -466,28 +477,32 @@
       let brush;
       
       if (type === 'calligraphy') {
-        // 毛筆模擬：使用筆刷陰影來製造暈染感，並稍微降低透明度
         brush = new fabric.PencilBrush(canvas);
         brush.width = width;
-        // 顏色透明度 (Ink effect)
         const c = new fabric.Color(color);
-        c.setAlpha(0.85); // 稍微透明，重疊處變深
+        c.setAlpha(0.8);
         brush.color = c.toRgba();
-        
-        // 暈染效果
-        brush.shadow = new fabric.Shadow({
-          blur: 2,
-          offsetX: 0,
-          offsetY: 0,
-          color: c.toRgba()
-        });
+        brush.shadow = new fabric.Shadow({ blur: 4, offsetX: 0, offsetY: 0, color: c.toRgba() });
         brush.strokeLineCap = 'round';
-        brush.strokeLineJoin = 'round';
+        
+      } else if (type === 'crayon') {
+        // 蠟筆效果：用高密度的噴槍模擬
+        brush = new fabric.SprayBrush(canvas);
+        brush.width = width * 1.5;
+        brush.density = 50; 
+        brush.dotWidth = 1;
+        brush.dotWidthVariance = 1;
+        brush.randomOpacity = true;
+        brush.color = color;
+        brush.shadow = null;
 
       } else if (type === 'spray') {
         brush = new fabric.SprayBrush(canvas);
         brush.width = width * 2;
+        brush.density = 20; // 普通噴槍比較散
         brush.color = color;
+        brush.shadow = null;
+
       } else if (type === 'marker') {
         brush = new fabric.PencilBrush(canvas);
         const c = new fabric.Color(color);
@@ -495,13 +510,14 @@
         brush.color = c.toRgba();
         brush.width = width * 3;
         brush.shadow = null;
+
       } else if (type === 'eraser') {
         brush = new fabric.PencilBrush(canvas);
-        brush.color = "#ffffff";
+        brush.color = "#faf9f6"; 
         brush.width = width * 3;
         brush.shadow = null;
+
       } else {
-        // 鉛筆
         brush = new fabric.PencilBrush(canvas);
         brush.width = width;
         brush.color = color;
@@ -513,7 +529,6 @@
 
     function processImage(img) {
       const isBgMode = document.getElementById('bg-mode-toggle').checked;
-
       if (isBgMode) {
         const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
         img.set({
@@ -558,14 +573,12 @@
       const fontVal = document.getElementById('font-select').value;
       const colorVal = document.getElementById('text-color').value;
       const finalVal = isVertical ? textVal.split('').join('\n') : textVal;
-
       const text = new fabric.IText(finalVal, {
         left: 50, top: 100, fontSize: 40,
         fontFamily: fontVal, fill: colorVal,
         textAlign: isVertical ? 'center' : 'left',
         lineHeight: isVertical ? 0.85 : 1.2
       });
-
       canvas.add(text);
       canvas.setActiveObject(text);
       setMode('select');
@@ -592,18 +605,10 @@
       saveState();
     }
 
-    // 新增：刪除選取物件
     function deleteObject() {
       const active = canvas.getActiveObject();
-      if (!active) {
-        showStatus('請先點選要刪除的貼圖或文字');
-        return;
-      }
-      // 雙重確認避免誤刪背景
-      if (active.isBackground) {
-        showStatus('背景無法刪除，請用「清空」');
-        return;
-      }
+      if (!active) return showStatus('請先點選物件');
+      if (active.isBackground) return showStatus('背景無法刪除');
       canvas.remove(active);
       saveState();
       showStatus('已刪除');
@@ -617,7 +622,7 @@
     }
     function clearCanvas() {
       if(confirm('確定要清空整張卡片嗎？')) { 
-        canvas.clear(); canvas.setBackgroundColor('#ffffff'); history = []; saveState();
+        canvas.clear(); canvas.setBackgroundColor('#faf9f6'); history = []; saveState();
       }
     }
     function downloadImage() {
