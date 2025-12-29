@@ -54,13 +54,28 @@
       position: relative;
     }
     
+    /* V18 核心：圖層分離結構 */
     .canvas-wrapper { 
       box-shadow: var(--card-shadow); 
       border: 1px solid #ddd;
-      background-color: #faf9f6;
+      /* 這裡設為透明，為了顯示下層的底圖 */
+      background-color: transparent; 
       max-width: 100%; 
       overflow: hidden;
       z-index: 10;
+      position: relative;
+    }
+
+    /* 背後的底圖層 (用來放不會被擦掉的背景) */
+    #background-layer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0; /* 在畫布下面 */
+      background-color: #faf9f6; /* 預設紙張色 */
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
     }
 
     /* 快捷控制台 */
@@ -159,6 +174,13 @@
     }
     select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; background: white; font-size: 14px; min-width: 100px; }
 
+    /* 渲染提示 */
+    #render-hint {
+      display:none; color: #d65a75; font-size: 12px; margin-top: 5px; font-weight: bold;
+      animation: blink 2s infinite;
+    }
+    @keyframes blink { 0% {opacity: 1;} 50% {opacity: 0.5;} 100% {opacity: 1;} }
+
     #status-msg { 
       position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
       background: rgba(74, 74, 74, 0.95); color: white; 
@@ -182,7 +204,8 @@
   <div class="app-container">
     
     <div class="canvas-section">
-      <div class="canvas-wrapper">
+      <div class="canvas-wrapper" id="canvas-wrapper">
+        <div id="background-layer"></div>
         <canvas id="c"></canvas>
       </div>
 
@@ -223,7 +246,7 @@
               <input type="color" id="brush-color" value="#000000" onchange="updateBrush()">
             </div>
             <select id="brush-type" onchange="updateBrush()" style="flex:1;">
-              <option value="calligraphy">✒️ 枯筆毛筆 (Dry Ink)</option>
+              <option value="calligraphy">✒️ 粗曠毛筆 (Rough Ink)</option>
               <option value="crayon">🖍️ 蠟筆 (Crayon)</option>
               <option value="pencil">✏️ 鉛筆 (Pencil)</option>
               <option value="marker">🖊️ 螢光筆 (Marker)</option>
@@ -233,8 +256,9 @@
           </div>
           <div class="tool-row">
             <span style="font-size:12px;">粗細</span>
-            <input type="range" id="brush-width" min="1" max="50" value="15" onchange="updateBrush()" style="flex:1;">
+            <input type="range" id="brush-width" min="1" max="50" value="20" onchange="updateBrush()" style="flex:1;">
           </div>
+          <div id="render-hint">🖌️ 毛筆/蠟筆運算較複雜，請放手後稍等 0.5 秒渲染喔！</div>
         </div>
       </div>
 
@@ -313,13 +337,17 @@
     const canvasWidth = Math.min(maxCanvasWidth, screenWidth - 25);
     const canvasHeight = canvasWidth * 1.48; 
 
+    // V18: 畫布本身設為透明，讓 CSS 背景層透出來
     const canvas = new fabric.Canvas('c', {
       width: canvasWidth,
       height: canvasHeight,
-      backgroundColor: '#faf9f6',
+      backgroundColor: null, // 透明
       isDrawingMode: false,
       preserveObjectStacking: true 
     });
+
+    // 背景圖片 URL 暫存，為了下載時使用
+    let currentBgUrl = '';
 
     let isVertical = false;
     let history = [];
@@ -329,7 +357,8 @@
 
     function saveState() {
       if (isHistoryProcessing) return;
-      const currentState = JSON.stringify(canvas.toDatalessJSON(['isBackground']));
+      // 狀態不存背景圖片(因為背景現在是 CSS)，只存畫布內容
+      const currentState = JSON.stringify(canvas.toDatalessJSON());
       if (history.length > 0 && history[history.length - 1] === currentState) return;
       if (history.length > 30) history.shift();
       history.push(currentState);
@@ -337,16 +366,8 @@
       updateHistoryButtons();
     }
     
+    // 恢復狀態時不用管鎖定背景了，因為背景不在 Canvas 裡
     function restoreLocks() {
-      canvas.getObjects().forEach(obj => {
-        if (obj.isBackground) {
-          obj.set({
-            selectable: false, evented: false, hasControls: false,
-            hasBorders: false, lockMovementX: true, lockMovementY: true
-          });
-          canvas.sendToBack(obj);
-        }
-      });
       canvas.requestRenderAll();
     }
 
@@ -361,7 +382,7 @@
       historyRedo.push(history.pop());
       const content = history[history.length - 1];
       canvas.loadFromJSON(content, () => {
-        restoreLocks();
+        canvas.requestRenderAll();
         isHistoryProcessing = false;
         updateHistoryButtons();
         showStatus('已復原');
@@ -374,7 +395,7 @@
       const content = historyRedo.pop();
       history.push(content);
       canvas.loadFromJSON(content, () => {
-        restoreLocks();
+        canvas.requestRenderAll();
         isHistoryProcessing = false;
         updateHistoryButtons();
         showStatus('已重做');
@@ -421,7 +442,8 @@
             const img = document.createElement('img');
             img.src = url;
             img.onclick = () => {
-              fabric.Image.fromURL(url, (oImg) => { processImage(oImg); }, { crossOrigin: 'anonymous' });
+              // 這裡不需再轉成 base64，直接傳 URL
+              processImage(url, false);
             };
             listDiv.appendChild(img);
           });
@@ -452,22 +474,24 @@
       const type = document.getElementById('brush-type').value;
       const color = document.getElementById('brush-color').value;
       const width = parseInt(document.getElementById('brush-width').value, 10);
+      const hint = document.getElementById('render-hint');
 
       let brush;
+      let showHint = false;
       
       if (type === 'calligraphy') {
-        // V4: 枯筆效果 (Dry Ink) - 密度降低，透明度降低
+        // V5: 粗曠顆粒感 (Rough Ink)
         brush = new fabric.SprayBrush(canvas);
-        brush.width = width * 1.5;
-        brush.density = 25; // 降低密度 -> 產生飛白顆粒感
-        brush.dotWidth = 0.5;
-        brush.dotWidthVariance = 0.5;
+        brush.width = width * 2;
+        brush.density = 40; // 密度適中
+        brush.dotWidth = 2; // 顆粒變大
+        brush.dotWidthVariance = 2; // 顆粒大小隨機
         brush.randomOpacity = true; 
         
-        // 顏色透明度 (Ink effect)
         const c = new fabric.Color(color);
-        c.setAlpha(0.6); // 墨色淡一點
+        c.setAlpha(0.7); 
         brush.color = c.toRgba();
+        showHint = true;
 
       } else if (type === 'crayon') {
         brush = new fabric.SprayBrush(canvas);
@@ -477,6 +501,7 @@
         brush.dotWidthVariance = 1;
         brush.randomOpacity = true;
         brush.color = color;
+        showHint = true;
 
       } else if (type === 'spray') {
         brush = new fabric.SprayBrush(canvas);
@@ -493,10 +518,17 @@
         brush.shadow = null;
 
       } else if (type === 'eraser') {
+        // V18 橡皮擦：使用 destination-out 模式
+        // 這會把畫布上的像素變成透明 -> 露出背後的 CSS 底圖
         brush = new fabric.PencilBrush(canvas);
-        brush.color = "#faf9f6"; 
+        brush.color = "rgba(0,0,0,1)"; // 顏色不重要，重點是模式
         brush.width = width * 3;
         brush.shadow = null;
+        // 關鍵：這行讓筆刷變成「去背橡皮擦」
+        canvas.freeDrawingBrush = brush;
+        canvas.freeDrawingBrush.globalCompositeOperation = 'destination-out';
+        hint.style.display = 'none';
+        return; // 直接返回，不用跑下面的設定
 
       } else {
         brush = new fabric.PencilBrush(canvas);
@@ -505,47 +537,67 @@
         brush.shadow = null;
       }
 
+      // 重置合成模式 (避免切換回其他筆刷時還在擦除)
+      if(brush) {
+        brush.globalCompositeOperation = 'source-over';
+      }
+      
       canvas.freeDrawingBrush = brush;
+      hint.style.display = showHint ? 'block' : 'none';
     }
 
-    function processImage(img) {
+    // V18 圖片處理：支援分離背景
+    function processImage(source, isFile) {
       const isBgMode = document.getElementById('bg-mode-toggle').checked;
+
       if (isBgMode) {
-        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-        img.set({
-          left: canvas.width / 2, top: canvas.height / 2,
-          originX: 'center', originY: 'center',
-          scaleX: scale, scaleY: scale,
-          selectable: false, evented: false, hasControls: false, hasBorders: false,
-          lockMovementX: true, lockMovementY: true,
-          isBackground: true 
-        });
-        canvas.add(img);
-        canvas.sendToBack(img); 
-        canvas.discardActiveObject();
-        canvas.requestRenderAll();
-        showStatus('🖼️ 背景已設定');
+        // 設定背景層 (CSS)
+        const bgLayer = document.getElementById('background-layer');
+        
+        if(isFile) {
+           // 如果是上傳的檔案，要用 FileReader 讀成 base64 顯示
+           const reader = new FileReader();
+           reader.onload = function(f) {
+             currentBgUrl = f.target.result; // 存起來下載用
+             bgLayer.style.backgroundImage = `url(${currentBgUrl})`;
+             showStatus('🖼️ 背景已設定 (橡皮擦不會擦掉它)');
+           };
+           reader.readAsDataURL(source);
+        } else {
+           // 如果是雲端 URL
+           currentBgUrl = source;
+           bgLayer.style.backgroundImage = `url(${source})`;
+           showStatus('🖼️ 背景已設定 (橡皮擦不會擦掉它)');
+        }
+        
       } else {
-        const targetWidth = canvas.width * 0.4; 
-        img.scaleToWidth(targetWidth);
-        img.set({left: canvas.width/2 - targetWidth/2, top: 150, isBackground: false});
-        canvas.add(img);
-        canvas.setActiveObject(img);
-        showStatus('✅ 圖片已加入');
+        // 貼圖模式：照舊
+        const handleImg = (imgUrl) => {
+             fabric.Image.fromURL(imgUrl, (img) => {
+                const targetWidth = canvas.width * 0.4; 
+                img.scaleToWidth(targetWidth);
+                img.set({left: canvas.width/2 - targetWidth/2, top: 150});
+                canvas.add(img);
+                canvas.setActiveObject(img);
+                showStatus('✅ 圖片已加入');
+                setMode('select');
+             }, { crossOrigin: 'anonymous' });
+        };
+
+        if(isFile) {
+            const reader = new FileReader();
+            reader.onload = function(f) { handleImg(f.target.result); };
+            reader.readAsDataURL(source);
+        } else {
+            handleImg(source);
+        }
       }
-      setMode('select');
     }
 
     function handleUniversalUpload(input) {
       const file = input.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(f) {
-        fabric.Image.fromURL(f.target.result, function(img) {
-          processImage(img);
-        });
-      };
-      reader.readAsDataURL(file);
+      processImage(file, true); // true 代表是檔案物件
       input.value = '';
     }
 
@@ -574,22 +626,19 @@
     function moveLayer(dir) {
       const active = canvas.getActiveObject();
       if (!active) return showStatus('請先選取物件');
-      if (active.selectable === false || active.isBackground) return showStatus('背景不能移動');
-
+      // 這裡不用管背景了
       if (dir === 'front') active.bringToFront();
       if (dir === 'back') active.sendToBack();
       if (dir === 'up') active.bringForward();
       if (dir === 'down') active.sendBackwards();
       
-      // ⚠️ 關鍵修正：移除了 discardActiveObject，保持選取狀態
-      canvas.requestRenderAll();
+      canvas.requestRenderAll(); // 保持選取
       saveState();
     }
 
     function deleteObject() {
       const active = canvas.getActiveObject();
       if (!active) return showStatus('請先點選物件');
-      if (active.isBackground) return showStatus('背景無法刪除');
       canvas.remove(active);
       saveState();
       showStatus('已刪除');
@@ -601,16 +650,61 @@
       el.style.opacity = 1;
       setTimeout(() => el.style.opacity = 0, 2000);
     }
+    
     function clearCanvas() {
-      if(confirm('確定要清空整張卡片嗎？')) { 
-        canvas.clear(); canvas.setBackgroundColor('#faf9f6'); history = []; saveState();
+      if(confirm('確定要清空塗鴉嗎？(背景會保留)')) { 
+        canvas.clear(); 
+        // 記得重設背景透明
+        canvas.setBackgroundColor(null, canvas.renderAll.bind(canvas));
+        history = []; saveState();
       }
     }
+
+    // V18 下載功能：必須把「背後的 CSS 背景」跟「前面的 Canvas」合併
     function downloadImage() {
-      const link = document.createElement('a');
-      link.download = 'my-nengajo.png';
-      link.href = canvas.toDataURL({format:'png', quality:1});
-      link.click();
+      // 1. 創建一個臨時畫布
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const ctx = tempCanvas.getContext('2d');
+
+      // 2. 繪製背景 (如果有的話)
+      // 我們先填滿一個米黃色底，避免 PNG 透明
+      ctx.fillStyle = "#faf9f6";
+      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+      const drawMainContent = () => {
+         // 3. 把 Fabric Canvas 畫上去
+         const dataURL = canvas.toDataURL({format:'png', multiplier: 1});
+         const mainImg = new Image();
+         mainImg.onload = () => {
+            ctx.drawImage(mainImg, 0, 0);
+            // 4. 下載
+            const link = document.createElement('a');
+            link.download = 'nengajo.png';
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+         };
+         mainImg.src = dataURL;
+      };
+
+      if (currentBgUrl) {
+         const bgImg = new Image();
+         bgImg.crossOrigin = "anonymous"; // 避免跨域問題
+         bgImg.onload = () => {
+            // 模擬 cover 效果繪製
+            const ratio = Math.max(tempCanvas.width / bgImg.width, tempCanvas.height / bgImg.height);
+            const centerShift_x = (tempCanvas.width - bgImg.width * ratio) / 2;
+            const centerShift_y = (tempCanvas.height - bgImg.height * ratio) / 2;
+            ctx.drawImage(bgImg, 0, 0, bgImg.width, bgImg.height, 
+                          centerShift_x, centerShift_y, bgImg.width * ratio, bgImg.height * ratio);
+            drawMainContent();
+         };
+         bgImg.onerror = drawMainContent; // 失敗就直接畫內容
+         bgImg.src = currentBgUrl;
+      } else {
+         drawMainContent();
+      }
     }
 
     loadCloudImages('stickers');
