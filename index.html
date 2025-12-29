@@ -18,6 +18,7 @@
       --text-color: #4a4a4a;
       --card-shadow: 0 8px 20px rgba(0,0,0,0.15);
       --toolbar-bg: #fff0f3;
+      --paper-color: #faf9f6; /* 紙張與橡皮擦的顏色 */
     }
 
     body { 
@@ -53,29 +54,17 @@
       position: relative;
     }
     
-    /* V24: 畫布容器背景透明，讓底下的 div 透出來 */
+    /* V25: 回歸實體背景色，最穩定 */
     .canvas-wrapper { 
       box-shadow: var(--card-shadow); 
       border: 1px solid #ddd;
-      background-color: transparent; 
+      background-color: var(--paper-color); 
       max-width: 100%; 
       z-index: 10;
       position: relative;
     }
 
-    /* 這是真正的背景層 (橡皮擦擦不到這裡) */
-    #background-layer {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      z-index: 0; 
-      background-color: #faf9f6; 
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      pointer-events: none;
-    }
-
+    /* 快捷控制台 */
     .quick-toolbar {
       width: 100%;
       background: var(--toolbar-bg);
@@ -97,6 +86,13 @@
     .btn-icon:disabled { opacity: 0.3; cursor: default; }
     .btn-trash { color: #e53935; border-color: #ffcdd2; }
     
+    /* 恢復底圖按鈕 (特別顯眼) */
+    .btn-restore { 
+      color: #1565c0; border-color: #bbdefb; background: #e3f2fd; 
+      font-size: 13px; font-weight: bold; padding: 8px 15px;
+    }
+    .btn-restore:hover { background: #bbdefb; }
+
     .tools-section {
       flex: 1; min-width: 300px; max-width: 450px;
       display: flex; flex-direction: column; gap: 15px;
@@ -194,7 +190,6 @@
     
     <div class="canvas-section">
       <div class="canvas-wrapper" id="canvas-wrapper">
-        <div id="background-layer"></div>
         <canvas id="c"></canvas>
       </div>
 
@@ -205,6 +200,7 @@
         </div>
         
         <div class="quick-group">
+          <button onclick="cleanEraserMarks()" class="btn-icon btn-restore" title="如果不小心蓋到背景，按這個清除">✨ 移除橡皮擦痕跡</button>
           <button onclick="deleteObject()" class="btn-icon btn-trash" title="刪除選取">🗑️</button>
         </div>
 
@@ -250,7 +246,10 @@
             <input type="range" id="brush-width" min="1" max="100" value="20" onchange="updateBrush()" style="flex:1;">
           </div>
           <div id="render-hint">🖌️ 毛筆/蠟筆運算較複雜，請放手後稍等渲染</div>
-          <div id="eraser-hint" style="display:none; color:#888; font-size:12px;">🧼 橡皮擦：可擦掉塗鴉與貼圖，但不會擦掉背景照片。</div>
+          <div id="eraser-hint" style="display:none; color:#888; font-size:12px; line-height:1.4;">
+            🧼 橡皮擦 (米色覆蓋模式)<br>
+            若蓋住背景，請按下方藍色「✨移除橡皮擦痕跡」按鈕。
+          </div>
         </div>
       </div>
 
@@ -319,7 +318,7 @@
 
   <div id="status-msg">操作成功</div>
 
-  <script>
+ <script>
     // ⚠️⚠️⚠️ 請在這裡填入您的 Supabase 資料 ⚠️⚠️⚠️
     const SUPABASE_URL = 'https://kyjppevleohxkrxvghve.supabase.co'; 
     const SUPABASE_KEY = 'sb_publishable_ICm0LIiw6DHBz-s7SHUYuQ_kDqSlITB';
@@ -329,26 +328,26 @@
     const canvasWidth = Math.min(maxCanvasWidth, screenWidth - 25);
     const canvasHeight = canvasWidth * 1.48; 
 
-    // V24: 畫布透明 (Transparent Canvas)
+    // V25: Solid Background Color #faf9f6
     const canvas = new fabric.Canvas('c', {
       width: canvasWidth,
       height: canvasHeight,
-      backgroundColor: null, // 關鍵：透明
+      backgroundColor: '#faf9f6', 
       isDrawingMode: false,
       preserveObjectStacking: true,
       selection: true 
     });
 
-    let currentBgUrl = '';
     let isVertical = false;
     let history = [];
     let historyRedo = [];
     let isHistoryProcessing = false;
     let currentCategory = 'stickers';
 
+    // 歷史紀錄
     function saveState() {
       if (isHistoryProcessing) return;
-      const currentState = JSON.stringify(canvas.toDatalessJSON());
+      const currentState = JSON.stringify(canvas.toDatalessJSON(['isBackground']));
       if (history.length > 0 && history[history.length - 1] === currentState) return;
       if (history.length > 30) history.shift();
       history.push(currentState);
@@ -356,7 +355,18 @@
       updateHistoryButtons();
     }
     
-    function restoreLocks() { canvas.requestRenderAll(); }
+    function restoreLocks() { 
+      canvas.getObjects().forEach(obj => {
+        if (obj.isBackground) {
+          obj.set({
+            selectable: false, evented: false, hasControls: false,
+            hasBorders: false, lockMovementX: true, lockMovementY: true
+          });
+          canvas.sendToBack(obj);
+        }
+      });
+      canvas.requestRenderAll(); 
+    }
 
     canvas.on('object:added', (e) => { if(!isHistoryProcessing) saveState(); });
     canvas.on('object:modified', saveState);
@@ -369,7 +379,7 @@
       historyRedo.push(history.pop());
       const content = history[history.length - 1];
       canvas.loadFromJSON(content, () => {
-        canvas.requestRenderAll();
+        restoreLocks();
         isHistoryProcessing = false;
         updateHistoryButtons();
         showStatus('已復原');
@@ -382,7 +392,7 @@
       const content = historyRedo.pop();
       history.push(content);
       canvas.loadFromJSON(content, () => {
-        canvas.requestRenderAll();
+        restoreLocks();
         isHistoryProcessing = false;
         updateHistoryButtons();
         showStatus('已重做');
@@ -397,6 +407,7 @@
     }
     saveState();
 
+    // 雲端素材
     async function switchCategory(category, btn) {
       currentCategory = category;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
@@ -440,6 +451,32 @@
       }
     }
 
+    // --- V25 核心：清除所有橡皮擦痕跡 (米色筆跡) ---
+    function cleanEraserMarks() {
+      const objects = canvas.getObjects();
+      let removedCount = 0;
+      
+      // 倒序刪除
+      for (let i = objects.length - 1; i >= 0; i--) {
+        const obj = objects[i];
+        // 條件：是線條 (path) 且顏色是米色 (#faf9f6)
+        if (obj.type === 'path' && obj.stroke === '#faf9f6') {
+          canvas.remove(obj);
+          removedCount++;
+        }
+      }
+      
+      restoreLocks();
+      saveState();
+      
+      if (removedCount > 0) {
+        showStatus(`🧹 已清除 ${removedCount} 筆橡皮擦，背景恢復！`);
+      } else {
+        showStatus('目前沒有橡皮擦痕跡喔');
+      }
+    }
+
+    // 模式切換
     function setMode(mode) {
       document.getElementById('btn-select').className = (mode === 'select' ? 'normal-btn active' : 'normal-btn');
       document.getElementById('btn-draw').className = (mode === 'draw' ? 'normal-btn active' : 'normal-btn');
@@ -460,10 +497,7 @@
         typeRow.style.display = 'flex'; 
         eraserHint.style.display = 'none';
         
-        // ⚠️ V24 關鍵修正：確保切回畫筆時，合成模式一定要還原
-        if(canvas.freeDrawingBrush) {
-           canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
-        }
+        // 切回畫筆時，重置筆刷設定
         updateBrush(); 
       } 
       else if (mode === 'eraser') {
@@ -473,21 +507,18 @@
         hint.style.display = 'none';
         eraserHint.style.display = 'block';
 
-        // 設定橡皮擦 (透明模式)
+        // V25: 橡皮擦 = 米色畫筆 (最穩定方案)
         const width = parseInt(document.getElementById('brush-width').value, 10);
         const brush = new fabric.PencilBrush(canvas);
-        brush.width = width * 2; // 橡皮擦稍微大一點
-        brush.color = "rgba(0,0,0,1)"; // 這裡設黑不影響，因為模式是去背
+        brush.width = width; 
+        brush.color = "#faf9f6"; 
         brush.shadow = null;
-        
         canvas.freeDrawingBrush = brush;
-        // 🚨 這是魔法指令：把畫到的地方變透明
-        canvas.freeDrawingBrush.globalCompositeOperation = 'destination-out';
       }
     }
 
+    // 筆刷更新 (確保不會用到 destination-out)
     function updateBrush() {
-      // 橡皮擦模式下不更新筆刷，避免被覆蓋
       if (document.getElementById('btn-eraser').classList.contains('active')) return;
 
       if (!canvas.isDrawingMode) return;
@@ -507,7 +538,7 @@
         brush.dotWidthVariance = 2.5; 
         brush.randomOpacity = true; 
         const c = new fabric.Color(color);
-        c.setAlpha(0.6); 
+        c.setAlpha(0.5); 
         brush.color = c.toRgba();
         showHint = true;
 
@@ -543,34 +574,30 @@
       }
 
       canvas.freeDrawingBrush = brush;
-      // ⚠️ V24 關鍵修正：確保正常筆刷是覆蓋模式
-      canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
       hint.style.display = showHint ? 'block' : 'none';
     }
 
+    // 圖片處理 (背景直接入 Canvas)
     function processImage(source, isFile) {
       const isBgMode = document.getElementById('bg-mode-toggle').checked;
       
-      // V24: 背景模式 -> 設定到 CSS 背景層 (橡皮擦擦不到)
-      if (isBgMode) {
-        const bgLayer = document.getElementById('background-layer');
-        if(isFile) {
-           const reader = new FileReader();
-           reader.onload = function(f) {
-             currentBgUrl = f.target.result; 
-             bgLayer.style.backgroundImage = `url(${currentBgUrl})`;
-             showStatus('🖼️ 背景已設定');
-           };
-           reader.readAsDataURL(source);
-        } else {
-           currentBgUrl = source;
-           bgLayer.style.backgroundImage = `url(${source})`;
-           showStatus('🖼️ 背景已設定');
-        }
-      } else {
-        // 貼圖模式 -> 放在 Canvas 裡 (橡皮擦擦得到)
-        const handleImg = (imgUrl) => {
-             fabric.Image.fromURL(imgUrl, (img) => {
+      const handleImg = (imgUrl) => {
+           fabric.Image.fromURL(imgUrl, (img) => {
+              if (isBgMode) {
+                const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+                img.set({
+                  left: canvas.width / 2, top: canvas.height / 2,
+                  originX: 'center', originY: 'center',
+                  scaleX: scale, scaleY: scale,
+                  selectable: false, evented: false, hasControls: false,
+                  hasBorders: false, lockMovementX: true, lockMovementY: true,
+                  isBackground: true 
+                });
+                canvas.add(img);
+                canvas.sendToBack(img);
+                canvas.requestRenderAll();
+                showStatus('🖼️ 背景已設定');
+              } else {
                 const targetWidth = canvas.width * 0.4; 
                 img.scaleToWidth(targetWidth);
                 img.set({left: canvas.width/2 - targetWidth/2, top: 150});
@@ -578,15 +605,16 @@
                 canvas.setActiveObject(img);
                 showStatus('✅ 圖片已加入');
                 setMode('select');
-             }, { crossOrigin: 'anonymous' });
-        };
-        if(isFile) {
-            const reader = new FileReader();
-            reader.onload = function(f) { handleImg(f.target.result); };
-            reader.readAsDataURL(source);
-        } else {
-            handleImg(source);
-        }
+              }
+           }, { crossOrigin: 'anonymous' });
+      };
+
+      if(isFile) {
+          const reader = new FileReader();
+          reader.onload = function(f) { handleImg(f.target.result); };
+          reader.readAsDataURL(source);
+      } else {
+          handleImg(source);
       }
     }
 
@@ -622,10 +650,13 @@
     function moveLayer(dir) {
       const active = canvas.getActiveObject();
       if (!active) return showStatus('請先選取物件');
+      if (active.selectable === false || active.isBackground) return showStatus('背景不能移動');
+
       if (dir === 'front') active.bringToFront();
       if (dir === 'back') active.sendToBack();
       if (dir === 'up') active.bringForward();
       if (dir === 'down') active.sendBackwards();
+      
       canvas.requestRenderAll(); 
       saveState();
     }
@@ -633,6 +664,7 @@
     function deleteObject() {
       const active = canvas.getActiveObject();
       if (!active) return showStatus('請先點選物件');
+      if (active.isBackground) return showStatus('背景無法刪除');
       canvas.remove(active);
       saveState();
       showStatus('已刪除');
@@ -648,51 +680,16 @@
     function clearCanvas() {
       if(confirm('確定要清空塗鴉與貼圖嗎？(背景會保留)')) { 
         canvas.clear(); 
-        // 重置為透明
-        canvas.setBackgroundColor(null, canvas.renderAll.bind(canvas));
+        canvas.setBackgroundColor('#faf9f6', canvas.renderAll.bind(canvas));
         history = []; saveState();
       }
     }
 
-    // 下載時合併背景與塗鴉
     function downloadImage() {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
-      const ctx = tempCanvas.getContext('2d');
-      // 預設底色米白
-      ctx.fillStyle = "#faf9f6";
-      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-
-      const drawMainContent = () => {
-         const dataURL = canvas.toDataURL({format:'png', multiplier: 1});
-         const mainImg = new Image();
-         mainImg.onload = () => {
-            ctx.drawImage(mainImg, 0, 0);
-            const link = document.createElement('a');
-            link.download = 'nengajo.png';
-            link.href = tempCanvas.toDataURL('image/png');
-            link.click();
-         };
-         mainImg.src = dataURL;
-      };
-
-      if (currentBgUrl) {
-         const bgImg = new Image();
-         bgImg.crossOrigin = "anonymous";
-         bgImg.onload = () => {
-            const ratio = Math.max(tempCanvas.width / bgImg.width, tempCanvas.height / bgImg.height);
-            const centerShift_x = (tempCanvas.width - bgImg.width * ratio) / 2;
-            const centerShift_y = (tempCanvas.height - bgImg.height * ratio) / 2;
-            ctx.drawImage(bgImg, 0, 0, bgImg.width, bgImg.height, 
-                          centerShift_x, centerShift_y, bgImg.width * ratio, bgImg.height * ratio);
-            drawMainContent();
-         };
-         bgImg.onerror = drawMainContent;
-         bgImg.src = currentBgUrl;
-      } else {
-         drawMainContent();
-      }
+      const link = document.createElement('a');
+      link.download = 'nengajo.png';
+      link.href = canvas.toDataURL({format:'png', quality:1});
+      link.click();
     }
 
     loadCloudImages('stickers');
